@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: v0.8.0 (Uzume design boards 5b, 5e, 5f: panel, HUD, run tab and corrections follow the boards as far as the fb.ui blocks allow); v0.7.1 (Uzume wording in texts and comments); v0.7.0 (new plugin ids uzume.soullink and uzume.soullink-core; the screen slot is the run tab of the Uzume app; v0.6.2: map from the game files or the game picture, full-screen default crop, Game data block with every key; place picker with every place, compact panel, run screen opened from the game, detection from pokemon-core 0.3.1). Depends on Uzume plugin API v1 (0.11); see https://github.com/phabioo/uzume `docs/roadmap.md`.
+Status: v0.8.1 (icon cache keyed by pokemon-core `info().icon_rev`); v0.8.0 (Uzume design boards 5b, 5e, 5f: panel, HUD, run tab and corrections follow the boards as far as the fb.ui blocks allow); v0.7.1 (Uzume wording in texts and comments); v0.7.0 (new plugin ids uzume.soullink and uzume.soullink-core; the screen slot is the run tab of the Uzume app; v0.6.2: map from the game files or the game picture, full-screen default crop, Game data block with every key; place picker with every place, compact panel, run screen opened from the game, detection from pokemon-core 0.3.1). Depends on Uzume plugin API v1 (0.11); see https://github.com/phabioo/uzume `docs/roadmap.md`.
 
 ## v0.1 MVP on Omega Ruby / Alpha Sapphire
 
@@ -34,6 +34,10 @@ Status: v0.8.0 (Uzume design boards 5b, 5e, 5f: panel, HUD, run tab and correcti
 ## v0.6.1 Game data closed by default
 
 - The "Game data" block is closed by default again; the chip "Show game data" opens it and the choice is kept across refreshes. Grouping by key prefix and the no-cap behaviour are unchanged.
+## v0.8.1 Icon cache by revision
+
+- Creature icons are cached as `icons/<rev>/<species>-<form>.png` with `<rev>` = `info().icon_rev` of pokemon-core (>= 0.4.2), so icons that an older core decoded wrongly are fetched again. The revision is read once (only `[%w%-_.]`, at most 32 chars) and retried after 10 s while `info()` fails; a core without a valid `icon_rev` keeps `icons/<species>-<form>.png`. Old cache files are not deleted.
+
 ## v0.8.0 Uzume design boards
 
 - Panel (5b-1): no own eyebrow (the app draws "Drawn by SoulLink"), one "Open run" in the header, encounter card with "first on this route" and "Doesn't count" plus the default key hint (Ctrl+D, only the keys the manifest declares), "Linked with" over the partners, footer "Graveyard n · Badges n / 8 · next cap Lv n".

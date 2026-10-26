@@ -21,7 +21,7 @@ t.case("bundled plugin loads in the mock sandbox", function()
   local chunk = assert(loadfile("plugin/main.lua"))
   chunk()
   _G.fb = nil
-  t.eq(m.logs[1].text, "SoulLink & Nuzlocke 0.8.0 geladen.")
+  t.eq(m.logs[1].text, "SoulLink & Nuzlocke 0.8.1 geladen.")
 end)
 
 t.case("sources use no sandbox-forbidden globals", function()
@@ -38,7 +38,7 @@ end)
 t.case("manifest", function()
   local s = read("plugin/manifest.json")
   for _, needle in ipairs({
-    '"id": "uzume.soullink"', '"name": "SoulLink & Nuzlocke"', '"version": "0.8.0"', '"api": 1',
+    '"id": "uzume.soullink"', '"name": "SoulLink & Nuzlocke"', '"version": "0.8.1"', '"api": 1',
     '"uzume.soullink-core": ">=0.4.0"', '"000400000011C400"', '"000400000011C500"',
     '"permissions": ["ui", "run.state", "video.capture"]', '"entry": "main.lua"', '"panel": { "title": "SoulLink" }',
     '"hud": true', '"tile": true', '"screen": { "title": "SoulLink" }',
