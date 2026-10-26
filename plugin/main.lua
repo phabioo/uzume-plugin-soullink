@@ -914,7 +914,9 @@ return A
 end
 __mod["app.icons"] = function(...)
 -- Creature icons from pokemon-core `icon(species, form)` (PNG string, or nil + "not_ready" /
--- "unsupported"), fetched lazily and cached in the own cache as `icons/<species>-<form>.png`.
+-- "unsupported"), fetched lazily and cached in the own cache as `icons/<rev>/<species>-<form>.png`, with
+-- `<rev>` = info().icon_rev of the core (a fixed icon decoder gets a new folder); a core without a valid
+-- icon_rev keeps `icons/<species>-<form>.png`. The revision is read once, retried while info() fails.
 -- The UI asks for `src(species, form)` while rendering: nil until the file is in the cache, so the
 -- builders fall back to no icon. Failures are remembered, `not_ready` is retried later with a growing delay.
 local I = {}
@@ -929,7 +931,26 @@ I.MAX_BAD = 5         -- consecutive failures without any success before icons a
 
 function I.new(fb)
   return setmetatable({ fb = fb, entries = {}, queue = {}, bad = 0, ok_once = false, disabled = false,
-                        feature_ok = false, next_info = 0, errors = {} }, I)
+                        feature_ok = false, next_info = 0, errors = {},
+                        now = 0, rev = nil, rev_done = false, next_rev = 0 }, I)
+end
+
+local function valid_rev(r)
+  return type(r) == "string" and #r > 0 and #r <= 32 and not r:find("[^%w%-_.]")
+end
+
+--- info() of the core; remembers icon_rev on the first answer. Returns the info table or nil.
+function I:info()
+  local ok, info = pcall(self.fb.call, I.CORE, "info")
+  if ok and type(info) == "table" then
+    if not self.rev_done then
+      self.rev_done = true
+      if valid_rev(info.icon_rev) then self.rev = info.icon_rev end
+    end
+    return info
+  end
+  if not self.rev_done then self.next_rev = self.now + I.INFO_MS end
+  return nil
 end
 
 local function norm(species, form)
@@ -938,17 +959,20 @@ local function norm(species, form)
   return species, form
 end
 
-function I.name(species, form) return "icons/" .. species .. "-" .. form .. ".png" end
+function I.name(species, form, rev)
+  return "icons/" .. (rev and (rev .. "/") or "") .. species .. "-" .. form .. ".png"
+end
 
 --- `cache:` src of the icon when it is in the cache, else nil (and the icon is queued once).
 function I:src(species, form)
   if self.disabled then return nil end
   local sp, fm = norm(species, form)
   if not sp then return nil end
+  if not self.rev_done and self.now >= self.next_rev then self:info() end
   local k = sp .. "-" .. fm
   local e = self.entries[k]
   if not e then
-    local name = I.name(sp, fm)
+    local name = I.name(sp, fm, self.rev)
     local okc, have = pcall(self.fb.cache.exists, name)
     if okc and have then
       e = { st = "have", name = name }
@@ -973,6 +997,7 @@ end
 
 --- Fetch a few queued icons. Returns true when at least one became available.
 function I:pump(now)
+  self.now = now
   if self.disabled then return false end
   for k, e in pairs(self.entries) do
     if e.st == "retry" and now >= e.at then e.st = "queued"; self.queue[#self.queue + 1] = k end
@@ -980,8 +1005,8 @@ function I:pump(now)
   if #self.queue == 0 then return false end
   if not self.feature_ok then
     if now < self.next_info then return false end
-    local ok, info = pcall(self.fb.call, I.CORE, "info")
-    if ok and type(info) == "table" and type(info.features) == "table" and info.features.icons ~= true then
+    local info = self:info()
+    if info and type(info.features) == "table" and info.features.icons ~= true then
       self.next_info = now + I.INFO_MS
       return false
     end
