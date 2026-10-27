@@ -218,6 +218,7 @@
   "place_hide": "Hide",
   "panel_footer": "Graveyard {grave} · Badges {n} / {total}",
   "next_cap_short": "next cap Lv {n}",
+  "snapshot_gym": "before Gym {n}",
   "update_to_open": "Update Uzume to open the run screen",
   "rules_summary": "{n} of {total} rules on",
   "rules_show": "Show rules",
