@@ -27,6 +27,7 @@ local snapshot = require("model.snapshot")
 local events = require("model.events")
 local corrections = require("model.corrections")
 local view_mod = require("model.view")
+local gym = require("model.gym")
 local oras = require("data.oras")
 local common = require("ui.common")
 local corr_ui = require("ui.corrections")
@@ -397,6 +398,36 @@ function A:poll(full)
     types = function(species, form) return self:primary_type(species, form) end,
     partner_types = function(route) return self:partner_types(route) end })
   self:commit(st, facts)
+  self:gym_snapshot(snap)
+end
+
+--- Save snapshot "before Gym N" once when a gym leader battle starts (model.gym decides). Needs the app's
+--- fb.save (Uzume 0.20+); on an older app fb.save is nil and nothing happens. The app limits snapshots to one
+--- per minute, so a refusal is retried on the next polls of the same battle (gym.MAX_ATTEMPTS).
+function A:gym_snapshot(snap)
+  if self.viewing or self.save_missing then return end
+  local save = self.fb.save
+  if type(save) ~= "table" or type(save.snapshot) ~= "function" then
+    self.save_missing = true
+    return
+  end
+  local n = gym.gym_number(snap.battle, self.st and self.st.badges, oras.level_cap)
+  if not n then
+    self.gym_tries = nil
+    return
+  end
+  self.gym_done = self.gym_done or {}
+  if self.gym_done[n] then return end
+  self.gym_tries = self.gym_tries or {}
+  if (self.gym_tries[n] or 0) >= gym.MAX_ATTEMPTS then return end
+  self.gym_tries[n] = (self.gym_tries[n] or 0) + 1
+  local ok, res, why = pcall(save.snapshot, self.tr("snapshot_gym", { n = n }))
+  if ok and res == true then
+    self.gym_done[n] = true
+    self.fb.log.info("save snapshot before gym " .. n)
+  else
+    warn_once(self, "snapshot", "save snapshot refused: " .. tostring(ok and why or res))
+  end
 end
 
 --- Adopt a new own state, publish it when it changed and post the facts as automatic events.
@@ -2441,6 +2472,34 @@ end
 function E.fits(payload) return util.json_size(payload) <= E.MAX_PAYLOAD end
 
 return E
+
+end
+__mod["model.gym"] = function(...)
+-- Gym leader battle detection for the save snapshot "before Gym N". Pure; never touches fb.
+-- pokemon.core marks no boss or gym battles, so a gym leader is recognised by what it does report:
+-- a trainer battle (battle.kind == "trainer") in which a foe has reached the level cap of the next gym
+-- (oras.level_cap(badges), the leader's strongest creature). Gym trainers before the leader stay below
+-- the cap. The cap table is a local-verification hint (data/oras.lua), so this is a heuristic.
+local M = {}
+
+M.MAX_ATTEMPTS = 5 -- tries per gym and battle when fb.save.snapshot refuses (rate limit)
+
+--- Number (1..8) of the gym whose leader fights now, or nil.
+--- `battle` is the core's battle() table, `badges` the badges owned, `level_cap` the table lookup.
+function M.gym_number(battle, badges, level_cap)
+  if type(battle) ~= "table" or battle.active ~= true or battle.kind ~= "trainer" then return nil end
+  if math.type(badges) ~= "integer" or badges < 0 or badges > 7 then return nil end
+  local cap = level_cap(badges)
+  if math.type(cap) ~= "integer" then return nil end
+  local top = 0
+  for _, foe in ipairs(type(battle.foes) == "table" and battle.foes or {}) do
+    if type(foe) == "table" and math.type(foe.level) == "integer" and foe.level > top then top = foe.level end
+  end
+  if top >= cap then return badges + 1 end
+  return nil
+end
+
+return M
 
 end
 __mod["model.rules"] = function(...)

@@ -70,7 +70,7 @@ function M.new(opts)
   local mock = { logs = {}, events = {}, provided = {}, watches = {}, dev_watches = {}, cache_files = {} }
   local regions = opts.memory or {}
   mock.regions = regions
-  local fb = { api = 1, plugin = { id = "uzume.soullink", version = "0.8.1" } }
+  local fb = { api = 1, plugin = { id = "uzume.soullink", version = "0.8.2" } }
   fb.game = opts.game or {}
   if opts.language and not fb.game.language then fb.game.language = opts.language end
   mock.fb = fb
@@ -399,6 +399,23 @@ function M.new(opts)
       if res == true then ev.png, ev.w, ev.h = png, w, h else ev.error = res end
       mock.fire_event("fb", "video.captured", ev)
     end
+  end
+
+  -- fb.save (Uzume 0.20+, no permission): only when opts.save is given, so the default mock is an older app.
+  --   opts.save = true | { refuse = "rate limited" }; mock.snapshots lists the reasons passed.
+  mock.snapshots = {}
+  if opts.save then
+    local cfg = type(opts.save) == "table" and opts.save or {}
+    fb.save = { snapshot = function(reason)
+      if type(reason) ~= "string" or #reason < 1 or #reason > 80 then error("snapshot: reason must be 1 to 80 characters", 2) end
+      mock.snapshots[#mock.snapshots + 1] = reason
+      if cfg.refuse then
+        mock.snapshots[#mock.snapshots] = nil
+        mock.snapshot_refusals = (mock.snapshot_refusals or 0) + 1
+        return nil, cfg.refuse
+      end
+      return true
+    end }
   end
 
   fb.cache = {

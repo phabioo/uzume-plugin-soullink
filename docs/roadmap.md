@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: v0.8.1 (icon cache keyed by pokemon-core `info().icon_rev`); v0.8.0 (Uzume design boards 5b, 5e, 5f: panel, HUD, run tab and corrections follow the boards as far as the fb.ui blocks allow); v0.7.1 (Uzume wording in texts and comments); v0.7.0 (new plugin ids uzume.soullink and uzume.soullink-core; the screen slot is the run tab of the Uzume app; v0.6.2: map from the game files or the game picture, full-screen default crop, Game data block with every key; place picker with every place, compact panel, run screen opened from the game, detection from pokemon-core 0.3.1). Depends on Uzume plugin API v1 (0.11); see https://github.com/phabioo/uzume `docs/roadmap.md`.
+Status: v0.8.2 (save snapshot "before Gym N" through `fb.save.snapshot` (Uzume 0.20) when a gym leader battle starts: a trainer battle in which a foe reaches the level cap of the next gym, since pokemon-core marks no boss battles; once per gym and session, guarded for older apps without `fb.save`); v0.8.1 (icon cache keyed by pokemon-core `info().icon_rev`); v0.8.0 (Uzume design boards 5b, 5e, 5f: panel, HUD, run tab and corrections follow the boards as far as the fb.ui blocks allow); v0.7.1 (Uzume wording in texts and comments); v0.7.0 (new plugin ids uzume.soullink and uzume.soullink-core; the screen slot is the run tab of the Uzume app; v0.6.2: map from the game files or the game picture, full-screen default crop, Game data block with every key; place picker with every place, compact panel, run screen opened from the game, detection from pokemon-core 0.3.1). Depends on Uzume plugin API v1 (0.11); see https://github.com/phabioo/uzume `docs/roadmap.md`.
 
 ## v0.1 MVP on Omega Ruby / Alpha Sapphire
 
@@ -34,6 +34,11 @@ Status: v0.8.1 (icon cache keyed by pokemon-core `info().icon_rev`); v0.8.0 (Uzu
 ## v0.6.1 Game data closed by default
 
 - The "Game data" block is closed by default again; the chip "Show game data" opens it and the choice is kept across refreshes. Grouping by key prefix and the no-cap behaviour are unchanged.
+## v0.8.2 Save snapshot before gym battles
+
+- `model.gym` + `App:gym_snapshot`: when `battle()` reports an active trainer battle and a foe is at or above `oras.level_cap(badges)` (the leader's strongest creature), the plugin calls `fb.save.snapshot("before Gym N")` (label in the app: "SoulLink & Nuzlocke: before Gym N"; at most one per minute per plugin, so a refusal is retried on the next 5 polls of the same battle). Once per gym and session; never in the run view; `fb.save` missing (app older than 0.20) or throwing is ignored.
+- Open: pokemon-core reports no gym or boss marker, so this is a heuristic on the level cap table (itself marked "verify locally"); the Elite Four and champion (all badges) are not covered; a lost gym fight is not snapshotted again in the same session; no run rule switches it off.
+
 ## v0.8.1 Icon cache by revision
 
 - Creature icons are cached as `icons/<rev>/<species>-<form>.png` with `<rev>` = `info().icon_rev` of pokemon-core (>= 0.4.2), so icons that an older core decoded wrongly are fetched again. The revision is read once (only `[%w%-_.]`, at most 32 chars) and retried after 10 s while `info()` fails; a core without a valid `icon_rev` keeps `icons/<species>-<form>.png`. Old cache files are not deleted.

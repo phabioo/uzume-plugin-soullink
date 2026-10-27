@@ -9,6 +9,7 @@ local snapshot = require("model.snapshot")
 local events = require("model.events")
 local corrections = require("model.corrections")
 local view_mod = require("model.view")
+local gym = require("model.gym")
 local oras = require("data.oras")
 local common = require("ui.common")
 local corr_ui = require("ui.corrections")
@@ -379,6 +380,36 @@ function A:poll(full)
     types = function(species, form) return self:primary_type(species, form) end,
     partner_types = function(route) return self:partner_types(route) end })
   self:commit(st, facts)
+  self:gym_snapshot(snap)
+end
+
+--- Save snapshot "before Gym N" once when a gym leader battle starts (model.gym decides). Needs the app's
+--- fb.save (Uzume 0.20+); on an older app fb.save is nil and nothing happens. The app limits snapshots to one
+--- per minute, so a refusal is retried on the next polls of the same battle (gym.MAX_ATTEMPTS).
+function A:gym_snapshot(snap)
+  if self.viewing or self.save_missing then return end
+  local save = self.fb.save
+  if type(save) ~= "table" or type(save.snapshot) ~= "function" then
+    self.save_missing = true
+    return
+  end
+  local n = gym.gym_number(snap.battle, self.st and self.st.badges, oras.level_cap)
+  if not n then
+    self.gym_tries = nil
+    return
+  end
+  self.gym_done = self.gym_done or {}
+  if self.gym_done[n] then return end
+  self.gym_tries = self.gym_tries or {}
+  if (self.gym_tries[n] or 0) >= gym.MAX_ATTEMPTS then return end
+  self.gym_tries[n] = (self.gym_tries[n] or 0) + 1
+  local ok, res, why = pcall(save.snapshot, self.tr("snapshot_gym", { n = n }))
+  if ok and res == true then
+    self.gym_done[n] = true
+    self.fb.log.info("save snapshot before gym " .. n)
+  else
+    warn_once(self, "snapshot", "save snapshot refused: " .. tostring(ok and why or res))
+  end
 end
 
 --- Adopt a new own state, publish it when it changed and post the facts as automatic events.

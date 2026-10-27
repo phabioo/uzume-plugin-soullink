@@ -6,6 +6,7 @@ main
 model.corrections
 model.detect
 model.events
+model.gym
 model.rules
 model.snapshot
 model.state
