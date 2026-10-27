@@ -481,6 +481,8 @@ function A:fact_text(f, user)
   elseif f.kind == "missed" then
     text = f.route and tr("ev_missed", { player = player, place = self:place_text(f.route) })
       or tr("ev_missed_noplace", { player = player })
+  elseif f.kind == "badge" then
+    text = tr("ev_badge", { player = player, n = f.index })
   elseif f.kind == "place" then
     text = tr("ev_place", { player = player, place = f.key and self:place_text(f.key) or (f.name or tr("place_none")) })
   end
@@ -503,13 +505,27 @@ function A:event_text(ev)
           species_name = p.species_name, why = p.outcome ~= "missed" and p.why or nil }
   elseif ty == events.TYPES.place then
     f = { kind = "place", key = p.route, name = p.name }
+  elseif ty == events.TYPES.badge then
+    f = { kind = "badge", index = p.index }
   end
   return f and self:fact_text(f, ev.user_id) or nil
+end
+
+--- True when the own participant already has a badge event for this badge number (restart, lost state).
+function A:badge_posted(index)
+  for _, ev in ipairs(self.events) do
+    if ev.type == events.TYPES.badge and ev.user_id == self.me and type(ev.payload) == "table"
+        and ev.payload.index == index then
+      return true
+    end
+  end
+  return false
 end
 
 function A:post_fact(f)
   local spec = events.from_fact(f, self.me)
   if not spec or not self:writable() then return end
+  if f.kind == "badge" and self:badge_posted(f.index) then return end
   spec.text = self:fact_text(f)
   local ok, err = pcall(self.fb.run.event, spec)
   if not ok then warn_once(self, "event", "event refused: " .. tostring(err)) end
@@ -602,8 +618,19 @@ function A:states()
   return states
 end
 
+--- True when pokemon.core serves demo data (info().demo); asked until the core answers, then remembered.
+function A:core_demo()
+  if self.demo_known then return self.demo_flag end
+  local ok, info = pcall(self.fb.call, "pokemon.core", "info")
+  if ok and type(info) == "table" then
+    self.demo_known, self.demo_flag = true, info.demo == true
+    return self.demo_flag
+  end
+  return false
+end
+
 function A:ctx(view)
-  return { view = view, run = self.run, me = self.me, ui = self.ui, tr = self.tr, readonly = not self:writable(),
+  return { demo = self:core_demo(), view = view, run = self.run, me = self.me, ui = self.ui, tr = self.tr, readonly = not self:writable(),
            events = self.events, hud_death = self.hud_until and self.hud_text or nil,
            map = self.maps and self.maps:view() or nil, diag = self.diag, icheck = self.icheck,
            can_open = type(self.fb.ui.open) == "function", location_ok = self.location_ok == true,
@@ -2237,7 +2264,13 @@ function D.diff(prev, snap, cfg, opts)
   local loc_now = type(snap.location) == "table" and snap.location or {}
   update_place(st, snap.location, facts, opts)
   local b = badge_count(snap.badges)
-  if b then st.badges = b end
+  if b then
+    -- one badge fact per new badge once tracking runs (a first snapshot with badges owned is baseline)
+    if st.started and b > st.badges then
+      for i = st.badges + 1, math.min(b, 8) do facts[#facts + 1] = { kind = "badge", index = i, count = i } end
+    end
+    st.badges = b
+  end
 
   local list, map, team_known, boxes_known = collect(snap)
   local bat = battle_info(snap)
@@ -2413,6 +2446,7 @@ E.TYPES = {
   death = "soullink.death",
   encounter = "soullink.encounter",
   place = "soullink.place",
+  badge = "soullink.badge",
   correction = "soullink.correction",
 }
 E.MAX_PAYLOAD = 4096
@@ -2425,6 +2459,7 @@ local function put(t, k, v) if v ~= nil then t[k] = v end end
 ---   death     payload { user, mon, species, species_name?, nickname?, route?, deaths }
 ---   encounter payload { user, outcome = "seen"|"missed", route?, species?, species_name?, form?, shiny?, horde?, counts, why? }
 ---   place     payload { user, route?, name?, manual }
+---   badge     payload { user, index, count } (badge number 1..8; no names)
 function E.from_fact(fact, user)
   local k = fact.kind
   local p = { user = user }
@@ -2450,6 +2485,9 @@ function E.from_fact(fact, user)
       if fact.horde then p.horde = true end
     end
     return { type = E.TYPES.encounter, payload = p, source = "automatic" }
+  elseif k == "badge" then
+    p.index, p.count = fact.index, fact.count
+    return { type = E.TYPES.badge, payload = p, source = "automatic" }
   elseif k == "place" then
     put(p, "route", fact.key); put(p, "name", fact.name)
     p.manual = fact.manual == true
@@ -4142,6 +4180,9 @@ local function header(ctx)
   end
   if ctx.view and ctx.view.randomizer then
     row[#row + 1] = { type = "badge", id = "h-rand", text = ctx.tr("rand_chip"), tone = "info" }
+  end
+  if ctx.demo then
+    row[#row + 1] = { type = "badge", id = "h-demo", text = ctx.tr("demo_chip"), tone = "warning" }
   end
   kids[#kids + 1] = { type = "row", id = "h-row", gap = 8, align = "center", children = row }
   return { type = "column", id = "header", gap = 4, children = kids }

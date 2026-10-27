@@ -1,7 +1,7 @@
 {
   "id": "uzume.soullink",
   "name": "SoulLink & Nuzlocke",
-  "version": "0.8.3",
+  "version": "0.9.0",
   "api": 1,
   "type": "script",
   "requires": { "uzume.soullink-core": ">=0.4.0" },
@@ -10,6 +10,12 @@
   ],
   "permissions": ["ui", "run.state", "video.capture"],
   "entry": "main.lua",
+  "recap": [
+    { "type": "soullink.catch", "glyph": "catch" },
+    { "type": "soullink.death", "glyph": "lost" },
+    { "type": "soullink.badge", "glyph": "badge" },
+    { "type": "soullink.correction", "glyph": "note" }
+  ],
   "run_settings": [
     { "key": "mode", "type": "enum", "label": "rs_mode", "default": "soullink",
       "options": [ { "value": "nuzlocke", "label": "rs_mode_nuzlocke" }, { "value": "soullink", "label": "rs_mode_soullink" } ] },

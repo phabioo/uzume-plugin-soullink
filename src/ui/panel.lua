@@ -32,6 +32,9 @@ local function header(ctx)
   if ctx.view and ctx.view.randomizer then
     row[#row + 1] = { type = "badge", id = "h-rand", text = ctx.tr("rand_chip"), tone = "info" }
   end
+  if ctx.demo then
+    row[#row + 1] = { type = "badge", id = "h-demo", text = ctx.tr("demo_chip"), tone = "warning" }
+  end
   kids[#kids + 1] = { type = "row", id = "h-row", gap = 8, align = "center", children = row }
   return { type = "column", id = "header", gap = 4, children = kids }
 end
