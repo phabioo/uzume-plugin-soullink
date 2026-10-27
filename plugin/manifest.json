@@ -1,7 +1,7 @@
 {
   "id": "uzume.soullink",
   "name": "SoulLink & Nuzlocke",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "api": 1,
   "type": "script",
   "requires": { "uzume.soullink-core": ">=0.4.0" },

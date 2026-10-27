@@ -3165,6 +3165,18 @@ function V.merge_places(run, states)
   return out
 end
 
+--- The run's randomizer fact from `fb.run.current().randomizer` (Uzume 0.21), or nil: absent, malformed or an
+--- unknown mode. Only mode, preset id and label are kept; seeds and settings are never exposed or shown.
+local RANDOMIZER_MODES = { each = true, same = true }
+function V.randomizer(run)
+  local r = type(run) == "table" and run.randomizer or nil
+  if type(r) ~= "table" or not RANDOMIZER_MODES[r.mode] then return nil end
+  local label = type(r.preset_label) == "string" and r.preset_label:match("^%s*(.-)%s*$") or ""
+  if #label > 40 then label = label:sub(1, 40) end
+  return { mode = r.mode, preset_id = type(r.preset_id) == "string" and r.preset_id or nil,
+           preset_label = label ~= "" and label or nil }
+end
+
 function V.view(run, states, events, cfg)
   run, states = run or {}, states or {}
   cfg = cfg and rules.normalize(cfg) or rules.parse(run)
@@ -3174,7 +3186,7 @@ function V.view(run, states, events, cfg)
   for _, p in ipairs(run.participants or {}) do
     if type(p) == "table" and p.user_id and joined(p) then
       players[#players + 1] = { id = p.user_id, name = p.name or p.user_name or p.user_id,
-                                color = p.color, game_id = p.game_id }
+                                color = p.color, game_id = p.game_id, own_variant = p.variant_kind == "own" or nil }
     end
   end
   if #players == 0 then
@@ -3336,7 +3348,7 @@ function V.view(run, states, events, cfg)
     local badges = w.st.badges or 0
     if badges > stats.badges_max then stats.badges_max = badges end
     out_players[i] = {
-      id = pl.id, name = pl.name, color = pl.color, game_id = pl.game_id, place = place_view,
+      id = pl.id, name = pl.name, color = pl.color, game_id = pl.game_id, own_variant = pl.own_variant, place = place_view,
       team = team, box_count = box, alive = alive, dead = dead, badges = badges,
       level_cap = cfg.rules.level_caps and oras.level_cap(badges) or nil, mons = views, ids = w.ids,
     }
@@ -3475,7 +3487,7 @@ function V.view(run, states, events, cfg)
     names = names, areas = areas, places = places, order = order,
     mode = cfg.mode, rules = cfg.rules, players = out_players, rows = rows, groups = group_views,
     graveyard = graveyard, stats = stats, hints = hints, invalid_corrections = invalid,
-    zones = V.merge_zones(run, states),
+    zones = V.merge_zones(run, states), randomizer = V.randomizer(run),
   }
 end
 
@@ -3496,7 +3508,8 @@ function M.build(ctx)
   local players = {}
   for i, p in ipairs(view.players) do
     players[#players + 1] = { id = "bp" .. i, title = p.name,
-      sub = tr("board_player_sub", { place = common.place_label(p.place, tr, view), alive = p.alive, dead = p.dead, badges = p.badges }),
+      sub = tr("board_player_sub", { place = common.place_label(p.place, tr, view), alive = p.alive, dead = p.dead, badges = p.badges })
+        .. (p.own_variant and (" · " .. tr("rand_own_variant")) or ""),
       tone = nil }
   end
   local columns = { tr("col_route") }
@@ -3527,6 +3540,8 @@ function M.build(ctx)
     } },
     { type = "section", id = "b-players", title = tr("board_players"), children = { { type = "list", id = "b-plist", rows = players } } },
   }
+  local rand = common.randomizer_text(view, tr)
+  if rand then table.insert(kids, 2, { type = "text", id = "b-randomizer", style = "meta", text = rand }) end
   if #rows > 0 then
     kids[#kids + 1] = { type = "section", id = "b-routes-s", title = tr("board_routes", { n = #view.rows }),
       children = { { type = "table", id = "b-routes-table", columns = columns, rows = rows } } }
@@ -3861,6 +3876,15 @@ end
 
 function C.mode_text(view, tr) return tr("mode_" .. view.mode) end
 
+--- "Randomized · each person their own world · Nuzlocke friendly"; nil when the run has no randomizer.
+function C.randomizer_text(view, tr)
+  local r = view.randomizer
+  if not r then return nil end
+  local parts = { tr("rand_on"), tr("rand_mode_" .. r.mode) }
+  if r.preset_label then parts[#parts + 1] = r.preset_label end
+  return table.concat(parts, " · ")
+end
+
 --- Number of alive mons of all players that are not gone.
 function C.alive_of(p) return p.alive end
 
@@ -4115,6 +4139,9 @@ local function header(ctx)
   local kids = {}
   if not common.writable(run) then
     kids[#kids + 1] = { type = "badge", id = "h-ro", text = tr("run_readonly_" .. tostring(run.status)), tone = "warning" }
+  end
+  if ctx.view and ctx.view.randomizer then
+    row[#row + 1] = { type = "badge", id = "h-rand", text = ctx.tr("rand_chip"), tone = "info" }
   end
   kids[#kids + 1] = { type = "row", id = "h-row", gap = 8, align = "center", children = row }
   return { type = "column", id = "header", gap = 4, children = kids }
@@ -4375,6 +4402,8 @@ local function header(ctx)
   local s = view.stats
   local kids = { { type = "text", id = "head-summary", style = "eyebrow",
     text = tr("run_summary", { deaths = s.deaths, done = s.routes_done, total = s.routes_total, badges = s.badges_max }) } }
+  local rand = common.randomizer_text(view, tr)
+  if rand then kids[#kids + 1] = { type = "text", id = "head-randomizer", style = "meta", text = rand } end
   if not common.writable(run) then
     kids[#kids + 1] = { type = "badge", id = "head-status", text = tr("run_status_" .. tostring(run.status)) .. " · " .. common.mode_text(view, tr),
       tone = "warning" }
@@ -4545,12 +4574,14 @@ local function team_page(ctx)
   local tr, view = ctx.tr, ctx.view
   local secs = {}
   for i, p in ipairs(view.players) do
+    local who = {
+      { type = "text", id = "pl-name" .. i, text = p.name, style = "heading" },
+      { type = "text", id = "pl-place" .. i, text = common.place_label(p.place, tr, view), style = "eyebrow" } }
+    if p.own_variant then who[#who + 1] = { type = "text", id = "pl-variant" .. i, text = tr("rand_own_variant"), style = "meta" } end
     local kids = {
       { type = "row", id = "pl-head" .. i, gap = 8, align = "center", children = {
         { type = "avatar", id = "pl-av" .. i, initial = common.initial(p.name), color = common.color(p, i), size = "m" },
-        { type = "column", id = "pl-who" .. i, gap = 0, children = {
-          { type = "text", id = "pl-name" .. i, text = p.name, style = "heading" },
-          { type = "text", id = "pl-place" .. i, text = common.place_label(p.place, tr, view), style = "eyebrow" } } },
+        { type = "column", id = "pl-who" .. i, gap = 0, children = who },
       } },
       { type = "text", id = "team-label" .. i, text = tr("team_label"), style = "eyebrow" },
     }

@@ -304,5 +304,10 @@
   "stat_routes": "Routen",
   "stat_badges": "Orden",
   "grave_title": "Friedhof ({n})",
-  "board_routes": "Routen {n}"
+  "board_routes": "Routen {n}",
+  "rand_on": "Randomisiert",
+  "rand_chip": "Randomisiert",
+  "rand_mode_each": "jede Person ihre eigene Welt",
+  "rand_mode_same": "dieselbe Welt für alle",
+  "rand_own_variant": "eigene Variante"
 }

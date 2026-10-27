@@ -42,6 +42,8 @@ local function header(ctx)
   local s = view.stats
   local kids = { { type = "text", id = "head-summary", style = "eyebrow",
     text = tr("run_summary", { deaths = s.deaths, done = s.routes_done, total = s.routes_total, badges = s.badges_max }) } }
+  local rand = common.randomizer_text(view, tr)
+  if rand then kids[#kids + 1] = { type = "text", id = "head-randomizer", style = "meta", text = rand } end
   if not common.writable(run) then
     kids[#kids + 1] = { type = "badge", id = "head-status", text = tr("run_status_" .. tostring(run.status)) .. " · " .. common.mode_text(view, tr),
       tone = "warning" }
@@ -212,12 +214,14 @@ local function team_page(ctx)
   local tr, view = ctx.tr, ctx.view
   local secs = {}
   for i, p in ipairs(view.players) do
+    local who = {
+      { type = "text", id = "pl-name" .. i, text = p.name, style = "heading" },
+      { type = "text", id = "pl-place" .. i, text = common.place_label(p.place, tr, view), style = "eyebrow" } }
+    if p.own_variant then who[#who + 1] = { type = "text", id = "pl-variant" .. i, text = tr("rand_own_variant"), style = "meta" } end
     local kids = {
       { type = "row", id = "pl-head" .. i, gap = 8, align = "center", children = {
         { type = "avatar", id = "pl-av" .. i, initial = common.initial(p.name), color = common.color(p, i), size = "m" },
-        { type = "column", id = "pl-who" .. i, gap = 0, children = {
-          { type = "text", id = "pl-name" .. i, text = p.name, style = "heading" },
-          { type = "text", id = "pl-place" .. i, text = common.place_label(p.place, tr, view), style = "eyebrow" } } },
+        { type = "column", id = "pl-who" .. i, gap = 0, children = who },
       } },
       { type = "text", id = "team-label" .. i, text = tr("team_label"), style = "eyebrow" },
     }
