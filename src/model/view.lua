@@ -257,6 +257,18 @@ function V.merge_places(run, states)
   return out
 end
 
+--- The run's randomizer fact from `fb.run.current().randomizer` (Uzume 0.21), or nil: absent, malformed or an
+--- unknown mode. Only mode, preset id and label are kept; seeds and settings are never exposed or shown.
+local RANDOMIZER_MODES = { each = true, same = true }
+function V.randomizer(run)
+  local r = type(run) == "table" and run.randomizer or nil
+  if type(r) ~= "table" or not RANDOMIZER_MODES[r.mode] then return nil end
+  local label = type(r.preset_label) == "string" and r.preset_label:match("^%s*(.-)%s*$") or ""
+  if #label > 40 then label = label:sub(1, 40) end
+  return { mode = r.mode, preset_id = type(r.preset_id) == "string" and r.preset_id or nil,
+           preset_label = label ~= "" and label or nil }
+end
+
 function V.view(run, states, events, cfg)
   run, states = run or {}, states or {}
   cfg = cfg and rules.normalize(cfg) or rules.parse(run)
@@ -266,7 +278,7 @@ function V.view(run, states, events, cfg)
   for _, p in ipairs(run.participants or {}) do
     if type(p) == "table" and p.user_id and joined(p) then
       players[#players + 1] = { id = p.user_id, name = p.name or p.user_name or p.user_id,
-                                color = p.color, game_id = p.game_id }
+                                color = p.color, game_id = p.game_id, own_variant = p.variant_kind == "own" or nil }
     end
   end
   if #players == 0 then
@@ -428,7 +440,7 @@ function V.view(run, states, events, cfg)
     local badges = w.st.badges or 0
     if badges > stats.badges_max then stats.badges_max = badges end
     out_players[i] = {
-      id = pl.id, name = pl.name, color = pl.color, game_id = pl.game_id, place = place_view,
+      id = pl.id, name = pl.name, color = pl.color, game_id = pl.game_id, own_variant = pl.own_variant, place = place_view,
       team = team, box_count = box, alive = alive, dead = dead, badges = badges,
       level_cap = cfg.rules.level_caps and oras.level_cap(badges) or nil, mons = views, ids = w.ids,
     }
@@ -567,7 +579,7 @@ function V.view(run, states, events, cfg)
     names = names, areas = areas, places = places, order = order,
     mode = cfg.mode, rules = cfg.rules, players = out_players, rows = rows, groups = group_views,
     graveyard = graveyard, stats = stats, hints = hints, invalid_corrections = invalid,
-    zones = V.merge_zones(run, states),
+    zones = V.merge_zones(run, states), randomizer = V.randomizer(run),
   }
 end
 

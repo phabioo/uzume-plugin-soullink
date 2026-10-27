@@ -11,7 +11,8 @@ function M.build(ctx)
   local players = {}
   for i, p in ipairs(view.players) do
     players[#players + 1] = { id = "bp" .. i, title = p.name,
-      sub = tr("board_player_sub", { place = common.place_label(p.place, tr, view), alive = p.alive, dead = p.dead, badges = p.badges }),
+      sub = tr("board_player_sub", { place = common.place_label(p.place, tr, view), alive = p.alive, dead = p.dead, badges = p.badges })
+        .. (p.own_variant and (" · " .. tr("rand_own_variant")) or ""),
       tone = nil }
   end
   local columns = { tr("col_route") }
@@ -42,6 +43,8 @@ function M.build(ctx)
     } },
     { type = "section", id = "b-players", title = tr("board_players"), children = { { type = "list", id = "b-plist", rows = players } } },
   }
+  local rand = common.randomizer_text(view, tr)
+  if rand then table.insert(kids, 2, { type = "text", id = "b-randomizer", style = "meta", text = rand }) end
   if #rows > 0 then
     kids[#kids + 1] = { type = "section", id = "b-routes-s", title = tr("board_routes", { n = #view.rows }),
       children = { { type = "table", id = "b-routes-table", columns = columns, rows = rows } } }

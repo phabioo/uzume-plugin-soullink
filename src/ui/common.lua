@@ -317,6 +317,15 @@ end
 
 function C.mode_text(view, tr) return tr("mode_" .. view.mode) end
 
+--- "Randomized · each person their own world · Nuzlocke friendly"; nil when the run has no randomizer.
+function C.randomizer_text(view, tr)
+  local r = view.randomizer
+  if not r then return nil end
+  local parts = { tr("rand_on"), tr("rand_mode_" .. r.mode) }
+  if r.preset_label then parts[#parts + 1] = r.preset_label end
+  return table.concat(parts, " · ")
+end
+
 --- Number of alive mons of all players that are not gone.
 function C.alive_of(p) return p.alive end
 

@@ -304,5 +304,10 @@
   "stat_routes": "Routes",
   "stat_badges": "Badges",
   "grave_title": "Graveyard ({n})",
-  "board_routes": "Routes {n}"
+  "board_routes": "Routes {n}",
+  "rand_on": "Randomized",
+  "rand_chip": "Randomized",
+  "rand_mode_each": "each person their own world",
+  "rand_mode_same": "same world for everyone",
+  "rand_own_variant": "own variant"
 }
