@@ -9,7 +9,7 @@ Requires Uzume 0.11 or later (plugin API v1) and `uzume-plugin-soullink-core`, w
 ## Releasing
 
 1. Bump `version` in `plugin/manifest.json` and merge.
-2. Release `vX.Y.Z` (must equal the manifest version), either by pushing the tag or by running "Release" in Actions on `main` with the tag as input; the latter creates the tag at that commit. The `Release` workflow runs the checks, builds the unsigned `.fbplugin` (`python3 tools/package.py`) and attaches it to the GitHub release. Re-running with an existing tag replaces the asset. The release notes are collected from the `## Changelog` sections of the merged PRs since the previous tag (`tools/changelog.py`).
+2. Release `vX.Y.Z` (must equal the manifest version), either by pushing the tag or by running "Release" in Actions on `main` with the tag as input; the latter creates the tag at that commit. The `Release` workflow runs the checks, builds the unsigned `.uzplugin` (`python3 tools/package.py`) and attaches it to the GitHub release. Re-running with an existing tag replaces the asset. The release notes are collected from the `## Changelog` sections of the merged PRs since the previous tag (`tools/changelog.py`).
 3. Run "Publish plugin" in phabioo/uzume with this repository and the tag; it downloads, signs and indexes the package.
 
 License: GPL-3.0-or-later, see [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md). Contributions under the [CLA](CLA.md).
