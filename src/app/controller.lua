@@ -463,6 +463,8 @@ function A:fact_text(f, user)
   elseif f.kind == "missed" then
     text = f.route and tr("ev_missed", { player = player, place = self:place_text(f.route) })
       or tr("ev_missed_noplace", { player = player })
+  elseif f.kind == "badge" then
+    text = tr("ev_badge", { player = player, n = f.index })
   elseif f.kind == "place" then
     text = tr("ev_place", { player = player, place = f.key and self:place_text(f.key) or (f.name or tr("place_none")) })
   end
@@ -485,13 +487,27 @@ function A:event_text(ev)
           species_name = p.species_name, why = p.outcome ~= "missed" and p.why or nil }
   elseif ty == events.TYPES.place then
     f = { kind = "place", key = p.route, name = p.name }
+  elseif ty == events.TYPES.badge then
+    f = { kind = "badge", index = p.index }
   end
   return f and self:fact_text(f, ev.user_id) or nil
+end
+
+--- True when the own participant already has a badge event for this badge number (restart, lost state).
+function A:badge_posted(index)
+  for _, ev in ipairs(self.events) do
+    if ev.type == events.TYPES.badge and ev.user_id == self.me and type(ev.payload) == "table"
+        and ev.payload.index == index then
+      return true
+    end
+  end
+  return false
 end
 
 function A:post_fact(f)
   local spec = events.from_fact(f, self.me)
   if not spec or not self:writable() then return end
+  if f.kind == "badge" and self:badge_posted(f.index) then return end
   spec.text = self:fact_text(f)
   local ok, err = pcall(self.fb.run.event, spec)
   if not ok then warn_once(self, "event", "event refused: " .. tostring(err)) end
@@ -584,8 +600,19 @@ function A:states()
   return states
 end
 
+--- True when pokemon.core serves demo data (info().demo); asked until the core answers, then remembered.
+function A:core_demo()
+  if self.demo_known then return self.demo_flag end
+  local ok, info = pcall(self.fb.call, "pokemon.core", "info")
+  if ok and type(info) == "table" then
+    self.demo_known, self.demo_flag = true, info.demo == true
+    return self.demo_flag
+  end
+  return false
+end
+
 function A:ctx(view)
-  return { view = view, run = self.run, me = self.me, ui = self.ui, tr = self.tr, readonly = not self:writable(),
+  return { demo = self:core_demo(), view = view, run = self.run, me = self.me, ui = self.ui, tr = self.tr, readonly = not self:writable(),
            events = self.events, hud_death = self.hud_until and self.hud_text or nil,
            map = self.maps and self.maps:view() or nil, diag = self.diag, icheck = self.icheck,
            can_open = type(self.fb.ui.open) == "function", location_ok = self.location_ok == true,

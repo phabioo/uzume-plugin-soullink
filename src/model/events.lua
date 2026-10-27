@@ -10,6 +10,7 @@ E.TYPES = {
   death = "soullink.death",
   encounter = "soullink.encounter",
   place = "soullink.place",
+  badge = "soullink.badge",
   correction = "soullink.correction",
 }
 E.MAX_PAYLOAD = 4096
@@ -22,6 +23,7 @@ local function put(t, k, v) if v ~= nil then t[k] = v end end
 ---   death     payload { user, mon, species, species_name?, nickname?, route?, deaths }
 ---   encounter payload { user, outcome = "seen"|"missed", route?, species?, species_name?, form?, shiny?, horde?, counts, why? }
 ---   place     payload { user, route?, name?, manual }
+---   badge     payload { user, index, count } (badge number 1..8; no names)
 function E.from_fact(fact, user)
   local k = fact.kind
   local p = { user = user }
@@ -47,6 +49,9 @@ function E.from_fact(fact, user)
       if fact.horde then p.horde = true end
     end
     return { type = E.TYPES.encounter, payload = p, source = "automatic" }
+  elseif k == "badge" then
+    p.index, p.count = fact.index, fact.count
+    return { type = E.TYPES.badge, payload = p, source = "automatic" }
   elseif k == "place" then
     put(p, "route", fact.key); put(p, "name", fact.name)
     p.manual = fact.manual == true

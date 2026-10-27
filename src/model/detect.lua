@@ -380,7 +380,13 @@ function D.diff(prev, snap, cfg, opts)
   local loc_now = type(snap.location) == "table" and snap.location or {}
   update_place(st, snap.location, facts, opts)
   local b = badge_count(snap.badges)
-  if b then st.badges = b end
+  if b then
+    -- one badge fact per new badge once tracking runs (a first snapshot with badges owned is baseline)
+    if st.started and b > st.badges then
+      for i = st.badges + 1, math.min(b, 8) do facts[#facts + 1] = { kind = "badge", index = i, count = i } end
+    end
+    st.badges = b
+  end
 
   local list, map, team_known, boxes_known = collect(snap)
   local bat = battle_info(snap)
