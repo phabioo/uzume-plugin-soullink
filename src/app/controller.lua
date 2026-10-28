@@ -505,10 +505,25 @@ function A:badge_posted(index)
   return false
 end
 
+--- True when the newest place event of the own participant already records this place (same route key,
+--- else same name), so a restart with lost or fresh state does not log the unchanged location again.
+function A:place_posted(f)
+  for i = #self.events, 1, -1 do
+    local ev = self.events[i]
+    if ev.type == events.TYPES.place and ev.user_id == self.me and type(ev.payload) == "table" then
+      local p = ev.payload
+      if f.key ~= nil then return p.route == f.key end
+      return p.route == nil and p.name ~= nil and p.name == f.name
+    end
+  end
+  return false
+end
+
 function A:post_fact(f)
   local spec = events.from_fact(f, self.me)
   if not spec or not self:writable() then return end
   if f.kind == "badge" and self:badge_posted(f.index) then return end
+  if f.kind == "place" and not f.manual and self:place_posted(f) then return end
   spec.text = self:fact_text(f)
   local ok, err = pcall(self.uz.run.event, spec)
   if not ok then warn_once(self, "event", "event refused: " .. tostring(err)) end
