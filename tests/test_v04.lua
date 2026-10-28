@@ -1,8 +1,8 @@
--- v0.4: compact panel (5b), run screen opened with fb.ui.open, routes and detection from pokemon-core v0.3
+-- v0.4: compact panel (5b), run screen opened with uz.ui.open, routes and detection from pokemon-core v0.3
 -- (areas, encounters seq, live hp, badges, names, primary types). Synthetic data only.
 local t = require("t")
 local B = require("build")
-local mock = require("fb_mock")
+local mock = require("uz_mock")
 local fake_core = require("fake_core")
 local ui_validator = require("ui_validator")
 local controller = require("app.controller")
@@ -22,7 +22,7 @@ local function boot(o)
   local core = fake_core.new(o.world)
   if o.setup then o.setup(core) end
   m.set_provider("pokemon.core", core.provider)
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   local env = { m = m, core = core, world = core.world, app = app, run = run }
   function env.step(ms) m.advance(ms or 600); m.tick(1) end
@@ -104,7 +104,7 @@ t.case("panel: at most two partner icons per row", function()
   local m = mock.new({ run = { current = run }, game = { code = "x", language = "en" } })
   local core = fake_core.new()
   m.set_provider("pokemon.core", core.provider)
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   local function step(ms) m.advance(ms or 600); m.tick(1) end
   core.world.box[1] = B.rec({ p = 0x77, sp = 12, nick = "Zippy", hp = 30 })
@@ -162,7 +162,7 @@ end)
 
 -- ---------------------------------------------------------------- opening the screen
 
-t.case("fb.ui.open: buttons, toast action and Ctrl+R open the screen slot", function()
+t.case("uz.ui.open: buttons, toast action and Ctrl+R open the screen slot", function()
   local e = boot()
   e.step()
   t.eq(#e.m.ui.opened, 0)
@@ -177,12 +177,12 @@ t.case("fb.ui.open: buttons, toast action and Ctrl+R open the screen slot", func
   t.eq(ui_validator.find(e.m.ui.trees.panel, "tabs"), nil)
   t.eq(e.app.ui.panel_run, nil)
   -- an error inside open is caught
-  e.m.fb.ui.open = function() error("boom") end
+  e.m.uz.ui.open = function() error("boom") end
   e.act("open_run")
   t.ok(e.m.ui.trees.panel)
 end)
 
-t.case("without fb.ui.open: meta text in the panel, no buttons, no in-panel run view", function()
+t.case("without uz.ui.open: meta text in the panel, no buttons, no in-panel run view", function()
   local e = boot({ no_ui_open = true })
   e.step()
   local p = e.m.ui.trees.panel
@@ -603,7 +603,7 @@ t.case("names: Runs page run view (no game, no core) shows names, never #ids", f
   run.view = true
   local m = mock.new({ run = { current = run, states = { ["u-lena"] = lena.st } } })
   m.set_provider("pokemon.core", { team = function() error("no core") end })
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   m.advance(600); m.tick(3)
   local tree = m.ui.trees.run

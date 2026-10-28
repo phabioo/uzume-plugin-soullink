@@ -1,5 +1,6 @@
 local t = require("t")
-local mock = require("fb_mock")
+local mock = require("uz_mock")
+local B = require("build")
 
 local function read(path)
   local f = assert(io.open(path, "rb"))
@@ -17,11 +18,35 @@ end)
 
 t.case("bundled plugin loads in the mock sandbox", function()
   local m = mock.new({ language = "de" })
-  _G.fb = m.fb
+  _G.uz = m.uz
+  local chunk = assert(loadfile("plugin/main.lua"))
+  chunk()
+  _G.uz = nil
+  t.eq(m.logs[1].text, "SoulLink & Nuzlocke 0.9.1 geladen.")
+end)
+
+t.case("older app with only the global fb still starts", function()
+  local m = mock.new({ language = "de" })
+  _G.fb = m.uz
   local chunk = assert(loadfile("plugin/main.lua"))
   chunk()
   _G.fb = nil
-  t.eq(m.logs[1].text, "SoulLink & Nuzlocke 0.9.0 geladen.")
+  t.eq(m.logs[1].text, "SoulLink & Nuzlocke 0.9.1 geladen.")
+end)
+
+t.case("older app subscribes to host events as fb, new app as uz", function()
+  local function tiles_seen(global, source)
+    local m = mock.new({ language = "de", run = { current = B.run({ "Lena", "Jonas" }) } })
+    _G[global] = m.uz
+    local chunk = assert(loadfile("plugin/main.lua"))
+    chunk()
+    _G[global] = nil
+    local ok = pcall(m.fire_event, source, "tiles", {})
+    return ok and m.subscribed and m.subscribed(source, "tiles")
+  end
+  t.ok(tiles_seen("fb", "fb"), "fb source with only global fb")
+  t.ok(not tiles_seen("fb", "uz"), "no uz subscription with only global fb")
+  t.ok(tiles_seen("uz", "uz"), "uz source with global uz")
 end)
 
 t.case("sources use no sandbox-forbidden globals", function()
@@ -38,7 +63,7 @@ end)
 t.case("manifest", function()
   local s = read("plugin/manifest.json")
   for _, needle in ipairs({
-    '"id": "uzume.soullink"', '"name": "SoulLink & Nuzlocke"', '"version": "0.9.0"', '"api": 1',
+    '"id": "uzume.soullink"', '"name": "SoulLink & Nuzlocke"', '"version": "0.9.1"', '"api": 1',
     '"uzume.soullink-core": ">=0.4.0"', '"000400000011C400"', '"000400000011C500"',
     '"permissions": ["ui", "run.state", "video.capture"]', '"entry": "main.lua"', '"panel": { "title": "SoulLink" }',
     '"hud": true', '"tile": true', '"screen": { "title": "SoulLink" }',

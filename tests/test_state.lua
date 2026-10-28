@@ -2,7 +2,7 @@ local t = require("t")
 local B = require("build")
 local state = require("model.state")
 local util = require("model.util")
-local mock = require("fb_mock")
+local mock = require("uz_mock")
 
 t.case("fresh state is small and versioned", function()
   local st = state.new({ id = "g", language = "de" })
@@ -49,7 +49,7 @@ t.case("size guard: 6 team + 120 box mons stay well below 64 KiB", function()
   t.ok(ok); t.eq(bytes, size)
   -- the fake setState enforces the platform limit
   local m = mock.new({ run = { current = { status = "active", me = "u-a", participants = {} } } })
-  t.ok(m.fb.run.setState(st))
+  t.ok(m.uz.run.setState(st))
   t.eq(m.run.states["u-a"].v, 1)
 end)
 

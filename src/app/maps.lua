@@ -1,5 +1,5 @@
 -- Region map, two sources. (1) From the game picture: the player opens the map in the game on the 3DS
--- bottom screen and "Take map from screen" captures it with fb.video.capture (permission video.capture,
+-- bottom screen and "Take map from screen" captures it with uz.video.capture (permission video.capture,
 -- Uzume 0.11+ with the game picture API). (2) From the game files: pokemon-core `map_candidates()` lists
 -- large images found in the player's own RomFS (nil, "not_ready" while it still scans), `map_image(id)` returns
 -- one as PNG, `map_selected()` is the core's own pick; the player browses them and confirms one. The PNG stays
@@ -16,7 +16,7 @@
 -- source, RESCALES the recorded positions (screen fraction kept) instead of clearing them; without a known old
 -- image nothing changes. The default crop is the full screen.
 -- Route positions on the image are our own recorded facts (data.oras.COORDS[game id]) merged under the
--- recorded ones. Retaking or removing the map keeps the positions. Without fb.video (older app) the
+-- recorded ones. Retaking or removing the map keeps the positions. Without uz.video (older app) the
 -- Map tab says so; nothing else depends on it.
 local util = require("model.util")
 local oras = require("data.oras")
@@ -51,27 +51,27 @@ end
 
 local function safe(id) return (tostring(id):gsub("[^%w_%-]", "_"):sub(1, 60)) end
 
---- `live` = false in the shell run view (no game: nothing to capture). Game id = fb.game.code.
-function M.new(fb, live)
-  local code = type(fb.game) == "table" and fb.game.code or nil
-  local self = setmetatable({ fb = fb, state = "none", coords = {}, live = live ~= false,
-                              api = type(fb.video) == "table" and type(fb.video.capture) == "function" }, M)
+--- `live` = false in the shell run view (no game: nothing to capture). Game id = uz.game.code.
+function M.new(uz, live)
+  local code = type(uz.game) == "table" and uz.game.code or nil
+  local self = setmetatable({ uz = uz, state = "none", coords = {}, live = live ~= false,
+                              api = type(uz.video) == "table" and type(uz.video.capture) == "function" }, M)
   self.game = (type(code) == "string" and code ~= "") and code or nil
   self:restore()
   self.edit = self.crop and M.clean_crop(self.crop) or M.clean_crop({})
-  -- map from the game files: only in a live run and when fb.call exists; the core decides on the first call
-  self.files = { state = (self.live and type(fb.call) == "function") and "idle" or "unsupported", list = {}, idx = 1,
+  -- map from the game files: only in a live run and when uz.call exists; the core decides on the first call
+  self.files = { state = (self.live and type(uz.call) == "function") and "idle" or "unsupported", list = {}, idx = 1,
                  previews = {}, failed = {}, retry = {}, next_at = 0 }
   return self
 end
 
 function M:read(name)
-  local ok, v = pcall(self.fb.cache.read, name)
+  local ok, v = pcall(self.uz.cache.read, name)
   return ok and v or nil
 end
 
 function M:write(name, data)
-  return (pcall(self.fb.cache.write, name, data))
+  return (pcall(self.uz.cache.write, name, data))
 end
 
 function M:file() return "map/" .. safe(self.id or M.NO_GAME) .. ".png" end
@@ -154,13 +154,13 @@ function M:export_line()
       c.area and string.format(", area = %q", c.area) or "")
   end
   local line = string.format("COORDS[%q] = { %s }", self.id, table.concat(parts, ", "))
-  self.fb.log.info("soullink positions: " .. line)
+  self.uz.log.info("soullink positions: " .. line)
   return line
 end
 
---- Screen to capture: the entry "bottom", else "main" of fb.video.screens() ({ name, x, y, w, h }), else nil.
+--- Screen to capture: the entry "bottom", else "main" of uz.video.screens() ({ name, x, y, w, h }), else nil.
 function M:target()
-  local ok, list = pcall(self.fb.video.screens)
+  local ok, list = pcall(self.uz.video.screens)
   if not ok or type(list) ~= "table" then return nil end
   local by = {}
   for _, sc in ipairs(list) do
@@ -207,9 +207,9 @@ function M:capture()
   local target = self:target()
   if not target then self.error = "no_frame"; return false end
   local rect = M.crop_rect(target, self.edit)
-  local ok, id = pcall(self.fb.video.capture, rect)
+  local ok, id = pcall(self.uz.video.capture, rect)
   if not ok then
-    self.fb.log.warn("soullink map capture: " .. tostring(id))
+    self.uz.log.warn("soullink map capture: " .. tostring(id))
     self.error = "failed"
     return false
   end
@@ -249,7 +249,7 @@ local function png_ok(png) return type(png) == "string" and M.png_size(png) ~= n
 
 --- Ask the core for the candidates (until it is done scanning) and fetch the preview of the shown one.
 --- Called from every tick; returns true when the view changed. A core without the functions (or without
---- fb.call) turns the option off for good.
+--- uz.call) turns the option off for good.
 function M:files_step(now)
   local f = self.files
   if f.state == "unsupported" then return false end
@@ -257,7 +257,7 @@ function M:files_step(now)
   if f.state ~= "done" then
     if now < f.next_at then return false end
     f.next_at = now + M.SCAN_MS
-    local ok, list, why = pcall(self.fb.call, M.CORE, "map_candidates")
+    local ok, list, why = pcall(self.uz.call, M.CORE, "map_candidates")
     if not ok or why == "unsupported" then f.state = "unsupported"; return true end
     if type(list) ~= "table" then
       if f.state ~= "scanning" then f.state, changed = "scanning", true end
@@ -271,13 +271,13 @@ function M:files_step(now)
       end
     end
     f.state, f.idx, f.previews, f.failed, f.retry = "done", 1, {}, {}, {}
-    local oks, sel = pcall(self.fb.call, M.CORE, "map_selected")
+    local oks, sel = pcall(self.uz.call, M.CORE, "map_selected")
     f.selected = (oks and type(sel) == "string" and sel ~= "") and sel or nil
     changed = true
   end
   local c = f.list[f.idx]
   if c and not f.previews[c.id] and not f.failed[c.id] and now >= (f.retry[c.id] or 0) then
-    local ok, png, why = pcall(self.fb.call, M.CORE, "map_image", c.id)
+    local ok, png, why = pcall(self.uz.call, M.CORE, "map_image", c.id)
     local name = "map/cand-" .. f.idx .. ".png"
     if ok and png_ok(png) and self:write(name, png) then
       f.previews[c.id], changed = name, true
@@ -310,7 +310,7 @@ function M:files_use()
   if not self.live or not self.game then f.error = "unsupported"; return false end
   local png = f.previews[c.id] and self:read(f.previews[c.id]) or nil
   if not png_ok(png) then
-    local ok, p = pcall(self.fb.call, M.CORE, "map_image", c.id)
+    local ok, p = pcall(self.uz.call, M.CORE, "map_image", c.id)
     png = ok and p or nil
   end
   local w, h = M.png_size(png)

@@ -16,7 +16,7 @@ M.LAST_ROUTE = 134
 --- (`zones`) and merged across all players (model.view.merge_zones).
 M.ZONES = {}
 M.ZONE_TO_ROUTE = M.ZONES -- old name
---- Route positions on the region map image, keyed by the game id (`fb.game.code`):
+--- Route positions on the region map image, keyed by the game id (`uz.game.code`):
 --- COORDS[game id][route key] = { x, y, area? } in image
 --- pixels. Our own recorded facts, EMPTY for now: positions are recorded in the Map tab
 --- ("Place routes") and exported with "Export positions".
@@ -94,7 +94,7 @@ function M.compare(a, b, order)
   return tostring(a) < tostring(b)
 end
 
---- Display text. `tr` is fb.i18n.t (key, vars); `names` (optional) is { loc = { ["<id>"] = name } }
+--- Display text. `tr` is uz.i18n.t (key, vars); `names` (optional) is { loc = { ["<id>"] = name } }
 --- from the game (view.names). Free places keep the text as typed; an area without a known
 --- name shows "Area <id>".
 function M.label(key, tr, names)

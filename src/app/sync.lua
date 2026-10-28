@@ -1,5 +1,5 @@
--- Keeps fb.ui slots up to date: nothing when the tree is unchanged, fb.ui.patch when only props of
--- blocks with an id changed (same structure), fb.ui.set otherwise.
+-- Keeps uz.ui slots up to date: nothing when the tree is unchanged, uz.ui.patch when only props of
+-- blocks with an id changed (same structure), uz.ui.set otherwise.
 local util = require("model.util")
 
 local S = {}
@@ -7,7 +7,7 @@ S.__index = S
 
 S.MAX_PATCHES = 12
 
-function S.new(fb) return setmetatable({ fb = fb, last = {}, sets = 0, patches = 0 }, S) end
+function S.new(uz) return setmetatable({ uz = uz, last = {}, sets = 0, patches = 0 }, S) end
 
 local function diff(old, new, patches)
   if old.type ~= new.type or old.id ~= new.id then return false end
@@ -40,13 +40,13 @@ function S:push(slot, tree)
     if util.encode(old) == util.encode(tree) then return "same" end
     local patches = {}
     if diff(old, tree, patches) and #patches <= S.MAX_PATCHES then
-      for _, p in ipairs(patches) do self.fb.ui.patch(slot, p.id, p.props) end
+      for _, p in ipairs(patches) do self.uz.ui.patch(slot, p.id, p.props) end
       self.last[slot] = util.copy(tree)
       self.patches = self.patches + #patches
       return "patch"
     end
   end
-  self.fb.ui.set(slot, tree)
+  self.uz.ui.set(slot, tree)
   self.last[slot] = util.copy(tree)
   self.sets = self.sets + 1
   return "set"
@@ -54,7 +54,7 @@ end
 
 function S:clear(slot)
   if self.last[slot] then
-    self.fb.ui.clear(slot)
+    self.uz.ui.clear(slot)
     self.last[slot] = nil
   end
 end

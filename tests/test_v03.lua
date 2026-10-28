@@ -1,7 +1,7 @@
 -- v0.3: panel run view, creature icons, zone-based route detection, map setup and calibration.
 local t = require("t")
 local B = require("build")
-local mock = require("fb_mock")
+local mock = require("uz_mock")
 local ui_validator = require("ui_validator")
 local controller = require("app.controller")
 local detect = require("model.detect")
@@ -27,7 +27,7 @@ local function boot(core, opts)
   }
   for k, v in pairs(core or {}) do provider[k] = v end
   m.set_provider("pokemon.core", provider)
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   local env = { m = m, world = world, app = app, run = run }
   function env.step(ms) m.advance(ms or 600); m.tick(1) end
@@ -269,7 +269,7 @@ t.case("map: screens fall back to main, errors are shown per code", function()
   t.ok(ui_validator.find(e3.m.ui.trees.screen, "map-error"))
 end)
 
-t.case("map: an older app without fb.video says so and nothing else breaks", function()
+t.case("map: an older app without uz.video says so and nothing else breaks", function()
   local e = boot(nil, { no_video = true })
   e.step(); e.step()
   local p = e.m.ui.trees.screen

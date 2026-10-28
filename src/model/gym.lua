@@ -1,11 +1,11 @@
--- Gym leader battle detection for the save snapshot "before Gym N". Pure; never touches fb.
+-- Gym leader battle detection for the save snapshot "before Gym N". Pure; never touches uz.
 -- pokemon.core marks no boss or gym battles, so a gym leader is recognised by what it does report:
 -- a trainer battle (battle.kind == "trainer") in which a foe has reached the level cap of the next gym
 -- (oras.level_cap(badges), the leader's strongest creature). Gym trainers before the leader stay below
 -- the cap. The cap table is a local-verification hint (data/oras.lua), so this is a heuristic.
 local M = {}
 
-M.MAX_ATTEMPTS = 5 -- tries per gym and battle when fb.save.snapshot refuses (rate limit)
+M.MAX_ATTEMPTS = 5 -- tries per gym and battle when uz.save.snapshot refuses (rate limit)
 
 --- Number (1..8) of the gym whose leader fights now, or nil.
 --- `battle` is the core's battle() table, `badges` the badges owned, `level_cap` the table lookup.

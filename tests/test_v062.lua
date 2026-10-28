@@ -2,7 +2,7 @@
 -- the same way by the view and by detection), icon check in the "Game data" block. Synthetic data only.
 local t = require("t")
 local B = require("build")
-local mock = require("fb_mock")
+local mock = require("uz_mock")
 local fake_core = require("fake_core")
 local ui_validator = require("ui_validator")
 local controller = require("app.controller")
@@ -213,7 +213,7 @@ local function boot(world)
   local m = mock.new({ run = { current = run }, game = { code = "000400000011C400", language = "en" }, video = true })
   local core = fake_core.new(world)
   m.set_provider("pokemon.core", core.provider)
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   local env = { m = m, core = core, app = app, run = run }
   function env.step(ms) m.advance(ms or 600); m.tick(1) end
@@ -228,21 +228,21 @@ t.case("controller: the Fabio scenario with encounters() of the core", function(
   local K = "loc:301"
   e.core:encounter({ species = 910 })
   e.step()
-  t.eq(e.m.fb.run.state().routes[K].status, "encounter")
-  e.m.fb.run.event(corrections.doesnt_count({ user = e.run.me, route = K }))
+  t.eq(e.m.uz.run.state().routes[K].status, "encounter")
+  e.m.uz.run.event(corrections.doesnt_count({ user = e.run.me, route = K }))
   e.step()
   e.core:encounter({ species = 911 })
   e.step()
-  local r = e.m.fb.run.state().routes[K]
+  local r = e.m.uz.run.state().routes[K]
   t.ok(r.status == "encounter" and r.species == 911 and r.rs, "the new encounter is the first one")
   local found
-  for _, ev in ipairs(e.m.fb.run.events(0, 200)) do
+  for _, ev in ipairs(e.m.uz.run.events(0, 200)) do
     if ev.type == "soullink.encounter" and ev.payload.species == 911 then found = ev end
   end
   t.ok(found and found.payload.counts, "event says it counts")
   table.insert(e.core.world.box, B.rec({ p = 0x1234, sp = 911, hp = 30, nick = "Fresh" }))
   e.step(6000); e.step()
-  r = e.m.fb.run.state().routes[K]
+  r = e.m.uz.run.state().routes[K]
   t.eq(r.status, "caught"); t.eq(r.mon, "00001234")
   t.eq(e.app.view.players[1].place.status, "caught")
 end)

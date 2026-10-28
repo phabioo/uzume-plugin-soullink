@@ -1,7 +1,7 @@
--- fb.save.snapshot("before Gym N") when a gym leader battle starts (synthetic data only).
+-- uz.save.snapshot("before Gym N") when a gym leader battle starts (synthetic data only).
 local t = require("t")
 local B = require("build")
-local mock = require("fb_mock")
+local mock = require("uz_mock")
 local controller = require("app.controller")
 local gym = require("model.gym")
 local oras = require("data.oras")
@@ -41,7 +41,7 @@ local function boot(opts)
     battle = function() return world.battle end,
     badges = function() return world.badges end,
   })
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   local function step(ms) m.advance(ms or 600); m.tick(1) end
   return { m = m, world = world, app = app, step = step }
@@ -81,15 +81,15 @@ t.case("German reason", function()
   m.set_provider("pokemon.core", { team = function() return {} end, box_count = function() return 1 end,
     box = function() return {} end, battle = function() return battle("trainer", { 99 }) end,
     badges = function() return { count = 0 } end })
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   m.advance(600); m.tick(1)
   t.eq(m.snapshots, { "vor Arena 1" })
 end)
 
-t.case("an older app without fb.save: no error, no retries", function()
+t.case("an older app without uz.save: no error, no retries", function()
   local e = boot{ badges = 0 }
-  t.eq(e.m.fb.save, nil)
+  t.eq(e.m.uz.save, nil)
   e.world.battle = battle("trainer", { 99 })
   e.step(); e.step(); e.step()
   t.eq(e.m.snapshots, {})
@@ -97,7 +97,7 @@ t.case("an older app without fb.save: no error, no retries", function()
   for _, l in ipairs(e.m.logs) do t.ok(not l.text:find("snapshot", 1, true), l.text) end
 end)
 
-t.case("a refusing fb.save (rate limit) is retried a few times, then given up, with one log line", function()
+t.case("a refusing uz.save (rate limit) is retried a few times, then given up, with one log line", function()
   local e = boot{ save = { refuse = "rate limited" }, badges = 0 }
   e.world.battle = battle("trainer", { 99 })
   for _ = 1, 10 do e.step() end
@@ -107,9 +107,9 @@ t.case("a refusing fb.save (rate limit) is retried a few times, then given up, w
   t.eq(n, 1)
 end)
 
-t.case("a throwing fb.save.snapshot does not break polling", function()
+t.case("a throwing uz.save.snapshot does not break polling", function()
   local e = boot{ save = true, badges = 0 }
-  e.m.fb.save.snapshot = function() error("boom") end
+  e.m.uz.save.snapshot = function() error("boom") end
   e.world.battle = battle("trainer", { 99 })
   e.step(); e.step()
   t.eq(e.app.errors.poll, nil)
@@ -123,7 +123,7 @@ t.case("the run view (read only) never snapshots", function()
   run.view = true
   local m = mock.new({ run = { current = run }, game = { code = "000400000011C400" }, save = true })
   m.set_provider("pokemon.core", { battle = function() return battle("trainer", { 99 }) end })
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   m.advance(600); m.tick(3)
   t.eq(m.snapshots, {})

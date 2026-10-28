@@ -1,4 +1,4 @@
--- Payload builders for the automatic run events. Posting (fb.run.event) is done by the caller.
+-- Payload builders for the automatic run events. Posting (uz.run.event) is done by the caller.
 -- Builders return a spec { type =, payload =, source = "automatic" }; `text` (at most 280
 -- characters, translated, with names read from the game) is added by the caller.
 local util = require("model.util")

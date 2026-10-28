@@ -1,7 +1,7 @@
 -- v0.5.1: place picker lists every place, game data diagnostics, map crop. Synthetic data only.
 local t = require("t")
 local B = require("build")
-local mock = require("fb_mock")
+local mock = require("uz_mock")
 local fake_core = require("fake_core")
 local ui_validator = require("ui_validator")
 local controller = require("app.controller")
@@ -18,7 +18,7 @@ local function boot(o)
   local core = fake_core.new(o.world)
   if o.setup then o.setup(core) end
   m.set_provider("pokemon.core", core.provider)
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   local env = { m = m, core = core, app = app }
   function env.step(ms) m.advance(ms or 600); m.tick(1) end
@@ -230,7 +230,7 @@ t.case("crop: stored crop survives a restart, malformed values are cleaned", fun
   local run = B.run({ "Lena", "Jonas" })
   local m = mock.new({ run = { current = run }, game = { code = "000400000011C400", language = "en" }, video = true })
   for k, v in pairs(cache) do m.cache_files[k] = v end
-  local mp = maps.new(m.fb, true)
+  local mp = maps.new(m.uz, true)
   t.eq(mp.crop, { t = 9, b = 45, l = 3, r = 22 })
   t.eq(mp.edit, mp.crop)
 end)

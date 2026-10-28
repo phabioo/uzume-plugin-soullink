@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: v0.9.0 (manifest `recap` block, `soullink.badge` run event, "Demo data" tag in the panel header); v0.8.3 (shows the run's randomizer from the optional `fb.run.current().randomizer` of Uzume 0.21: a fact line "Randomized · each person their own world · <preset>" in the run tab header and run board, a "Randomized" badge in the in-game panel, "own variant" next to people with `variant_kind` "own"; display only, no rule changes, seeds and settings never shown); v0.8.2 (save snapshot "before Gym N" through `fb.save.snapshot` (Uzume 0.20) when a gym leader battle starts: a trainer battle in which a foe reaches the level cap of the next gym, since pokemon-core marks no boss battles; once per gym and session, guarded for older apps without `fb.save`); v0.8.1 (icon cache keyed by pokemon-core `info().icon_rev`); v0.8.0 (Uzume design boards 5b, 5e, 5f: panel, HUD, run tab and corrections follow the boards as far as the fb.ui blocks allow); v0.7.1 (Uzume wording in texts and comments); v0.7.0 (new plugin ids uzume.soullink and uzume.soullink-core; the screen slot is the run tab of the Uzume app; v0.6.2: map from the game files or the game picture, full-screen default crop, Game data block with every key; place picker with every place, compact panel, run screen opened from the game, detection from pokemon-core 0.3.1). Depends on Uzume plugin API v1 (0.11); see https://github.com/phabioo/uzume `docs/roadmap.md`.
+Status: v0.9.1 (API namespace `uz`, falls back to `fb` on older apps); v0.9.0 (manifest `recap` block, `soullink.badge` run event, "Demo data" tag in the panel header); v0.8.3 (shows the run's randomizer from the optional `uz.run.current().randomizer` of Uzume 0.21: a fact line "Randomized · each person their own world · <preset>" in the run tab header and run board, a "Randomized" badge in the in-game panel, "own variant" next to people with `variant_kind` "own"; display only, no rule changes, seeds and settings never shown); v0.8.2 (save snapshot "before Gym N" through `uz.save.snapshot` (Uzume 0.20) when a gym leader battle starts: a trainer battle in which a foe reaches the level cap of the next gym, since pokemon-core marks no boss battles; once per gym and session, guarded for older apps without `uz.save`); v0.8.1 (icon cache keyed by pokemon-core `info().icon_rev`); v0.8.0 (Uzume design boards 5b, 5e, 5f: panel, HUD, run tab and corrections follow the boards as far as the uz.ui blocks allow); v0.7.1 (Uzume wording in texts and comments); v0.7.0 (new plugin ids uzume.soullink and uzume.soullink-core; the screen slot is the run tab of the Uzume app; v0.6.2: map from the game files or the game picture, full-screen default crop, Game data block with every key; place picker with every place, compact panel, run screen opened from the game, detection from pokemon-core 0.3.1). Depends on Uzume plugin API v1 (0.11); see https://github.com/phabioo/uzume `docs/roadmap.md`.
 
 ## v0.1 MVP on Omega Ruby / Alpha Sapphire
 
@@ -13,10 +13,10 @@ Status: v0.9.0 (manifest `recap` block, `soullink.badge` run event, "Demo data" 
 
 ## v0.4.0 panel, run screen, detection from pokemon-core 0.3
 
-- Panel per design 5b at about 300 px (run header, location card, encounter hint, team with partners, graveyard, footer); the full run screen (5e, all corrections) opens with `fb.ui.open("screen")` (button, toast action, Ctrl+R); without that call the panel says to update Uzume.
+- Panel per design 5b at about 300 px (run header, location card, encounter hint, team with partners, graveyard, footer); the full run screen (5e, all corrections) opens with `uz.ui.open("screen")` (button, toast action, Ctrl+R); without that call the panel says to update Uzume.
 - Routes are the encounter areas of the game (`areas()`, key `loc:<location id>`), names read from the game and stored short in the own run state so other players, the tile strip and the server show names; old `route-N` keys still render.
 - Detection: `encounters()` seq (first per area, hordes, shiny and dupes clause), catch by team/box diff, death by live hp 0 or battle hp 0, badges from `badges()`, pairs-differ-primary-type via `species_info`.
-- Map tab: the map is captured from the 3DS bottom screen ("Take map from screen", `fb.video.capture`, permission `video.capture`). Needs an app with the game picture API; older apps show an update hint. (0.6.0 adds the second source, see below.)
+- Map tab: the map is captured from the 3DS bottom screen ("Take map from screen", `uz.video.capture`, permission `video.capture`). Needs an app with the game picture API; older apps show an update hint. (0.6.0 adds the second source, see below.)
 - Open: level caps and map positions of the areas are recorded with the real game; see `docs/architecture.md` open points.
 
 ## v0.4.1 fixes from the first playtest
@@ -36,13 +36,13 @@ Status: v0.9.0 (manifest `recap` block, `soullink.badge` run event, "Demo data" 
 - The "Game data" block is closed by default again; the chip "Show game data" opens it and the choice is kept across refreshes. Grouping by key prefix and the no-cap behaviour are unchanged.
 ## v0.8.3 Randomized runs shown
 
-- `model.view` `V.randomizer(run)` reads the optional `fb.run.current().randomizer` (`mode` "each" | "same", `preset_id`, `preset_label`; Uzume 0.21) nil-safe; an absent field or an unknown mode means no randomizer. Participants with `variant_kind` "own" get `own_variant` in the view. Seeds, settings and tool version are never kept or shown.
+- `model.view` `V.randomizer(run)` reads the optional `uz.run.current().randomizer` (`mode` "each" | "same", `preset_id`, `preset_label`; Uzume 0.21) nil-safe; an absent field or an unknown mode means no randomizer. Participants with `variant_kind` "own" get `own_variant` in the view. Seeds, settings and tool version are never kept or shown.
 - Display only: eyebrow-style fact "Randomized · each person their own world · <preset>" (or "same world for everyone") in the run tab header (`head-randomizer`) and on the run board (`b-randomizer`), a "Randomized" badge in the in-game panel header, "own variant" under the name in the Team tab and in the board player list. No rule changes: SoulLink links by route, so different species per person are fine. Detection is unchanged (names and encounters come from the running game).
 - Open: not yet run against a real Uzume 0.21; written against the announced field shape.
 
 ## v0.8.2 Save snapshot before gym battles
 
-- `model.gym` + `App:gym_snapshot`: when `battle()` reports an active trainer battle and a foe is at or above `oras.level_cap(badges)` (the leader's strongest creature), the plugin calls `fb.save.snapshot("before Gym N")` (label in the app: "SoulLink & Nuzlocke: before Gym N"; at most one per minute per plugin, so a refusal is retried on the next 5 polls of the same battle). Once per gym and session; never in the run view; `fb.save` missing (app older than 0.20) or throwing is ignored.
+- `model.gym` + `App:gym_snapshot`: when `battle()` reports an active trainer battle and a foe is at or above `oras.level_cap(badges)` (the leader's strongest creature), the plugin calls `uz.save.snapshot("before Gym N")` (label in the app: "SoulLink & Nuzlocke: before Gym N"; at most one per minute per plugin, so a refusal is retried on the next 5 polls of the same battle). Once per gym and session; never in the run view; `uz.save` missing (app older than 0.20) or throwing is ignored.
 - Open: pokemon-core reports no gym or boss marker, so this is a heuristic on the level cap table (itself marked "verify locally"); the Elite Four and champion (all badges) are not covered; a lost gym fight is not snapshotted again in the same session; no run rule switches it off.
 
 ## v0.8.1 Icon cache by revision
@@ -63,7 +63,7 @@ Status: v0.9.0 (manifest `recap` block, `soullink.badge` run event, "Demo data" 
 
 ## v0.7.0 Uzume plugin ids
 
-- New plugin ids for Uzume (ADR 0030 D7 of the Uzume app): `uzume.soullink` (this plugin) and `uzume.soullink-core` (requires `>=0.4.0`). No migration and no compatibility alias; run settings are read under the new id. The Uzume app has no sidebar screen any more: the `screen` slot is the plugin tab in the run view ("run tab"), and in a game `fb.ui.open("screen")` still opens the sheet. Behaviour is unchanged.
+- New plugin ids for Uzume (ADR 0030 D7 of the Uzume app): `uzume.soullink` (this plugin) and `uzume.soullink-core` (requires `>=0.4.0`). No migration and no compatibility alias; run settings are read under the new id. The Uzume app has no sidebar screen any more: the `screen` slot is the plugin tab in the run view ("run tab"), and in a game `uz.ui.open("screen")` still opens the sheet. Behaviour is unchanged.
 
 
 ## v0.6.2 corrections and detection agree, icon check

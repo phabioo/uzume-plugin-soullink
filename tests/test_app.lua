@@ -1,8 +1,8 @@
--- Wiring tests: controller with mocked fb.run, fb.ui and pokemon.core. The mock validates every
--- fb.ui tree and patch against the documented block catalog (tests/support/ui_validator.lua).
+-- Wiring tests: controller with mocked uz.run, uz.ui and pokemon.core. The mock validates every
+-- uz.ui tree and patch against the documented block catalog (tests/support/ui_validator.lua).
 local t = require("t")
 local B = require("build")
-local mock = require("fb_mock")
+local mock = require("uz_mock")
 local ui_validator = require("ui_validator")
 local controller = require("app.controller")
 local oras = require("data.oras")
@@ -26,7 +26,7 @@ local function boot(opts)
     box_count = function() return 1 end,
     box = function() return world.box end,
   })
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   local env = { m = m, world = world, app = app, run = run }
   function env.step(ms)
@@ -66,7 +66,7 @@ end
 t.case("no run: empty states, no tracking", function()
   local m = mock.new()
   m.set_provider("pokemon.core", { team = function() error("must not be called") end })
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   for _, slot in ipairs({ "panel", "hud", "screen" }) do t.ok(m.ui.trees[slot], slot) end
   t.ok(ui_validator.find(m.ui.trees.panel, "empty").text:find("Play run", 1, true))
@@ -116,8 +116,8 @@ end)
 t.case("state changed only: setState count", function()
   local e = boot()
   local writes = 0
-  local orig = e.m.fb.run.setState
-  e.m.fb.run.setState = function(s) writes = writes + 1; return orig(s) end
+  local orig = e.m.uz.run.setState
+  e.m.uz.run.setState = function(s) writes = writes + 1; return orig(s) end
   for _ = 1, 10 do e.step() end
   t.eq(writes, 0)
   e.act("badges_select", 3)
@@ -275,11 +275,11 @@ t.case("tile strip for a friend's tile", function()
   e.act("place_select", "route-101")
   jonas_catches(e, "route-101", 0x99, 15)
   e.step()
-  e.m.fire_event("fb", "tiles", { { id = "t1", player = "jonas", game = "x" }, { id = "t2", player = "nobody", game = "x" } })
+  e.m.fire_event("uz", "tiles", { { id = "t1", player = "jonas", game = "x" }, { id = "t2", player = "nobody", game = "x" } })
   e.step()
   t.eq(e.m.ui.trees["tile:t1"].text, "SL Route 101 · 1 alive")
   t.eq(e.m.ui.trees["tile:t2"], nil)
-  e.m.fire_event("fb", "tiles", {})
+  e.m.fire_event("uz", "tiles", {})
   e.step()
   t.eq(e.m.ui.trees["tile:t1"], nil)
 end)
@@ -313,10 +313,10 @@ t.case("notices: new route hint and rate-limit tolerance", function()
   -- manual place changes do not toast; detected ones do
   e.app:note_place("route-103")
   t.ok(e.m.ui.notes[#e.m.ui.notes].text:find("New route: Route 103", 1, true))
-  local orig = e.m.fb.ui.notify
-  e.m.fb.ui.notify = function() return nil end -- dropped by the rate limit
+  local orig = e.m.uz.ui.notify
+  e.m.uz.ui.notify = function() return nil end -- dropped by the rate limit
   e.app:note_place("route-104")
-  e.m.fb.ui.notify = orig
+  e.m.uz.ui.notify = orig
 end)
 
 t.case("map tab only when the core offers a map", function()
@@ -419,7 +419,7 @@ t.case("package builds and verifies", function()
   local ok = os.execute("python3 -c 'import sys' >/dev/null 2>&1")
   if not ok then return t.skip("python3 not available") end
   local dir = os.tmpname() .. ".d"
-  local ok2 = os.execute("python3 -I tools/package.py --out " .. dir .. " --tag v0.9.0 >/dev/null && python3 -I tools/package.py --verify " .. dir .. "/uzume.soullink-0.9.0.uzplugin >/dev/null")
+  local ok2 = os.execute("python3 -I tools/package.py --out " .. dir .. " --tag v0.9.1 >/dev/null && python3 -I tools/package.py --verify " .. dir .. "/uzume.soullink-0.9.1.uzplugin >/dev/null")
   t.ok(ok2, "package.py failed")
   local bad = os.execute("python3 -I tools/package.py --out " .. dir .. " --tag v9.9.9 >/dev/null 2>&1")
   t.ok(not bad, "tag/version mismatch must fail")

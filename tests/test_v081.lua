@@ -1,13 +1,13 @@
 -- v0.8.1: icon cache keyed by pokemon-core info().icon_rev. Synthetic data only.
 local t = require("t")
-local mock = require("fb_mock")
+local mock = require("uz_mock")
 local Icons = require("app.icons")
 
 local function setup(info)
   local m = mock.new({})
   local provider = { info = info, icon = function() return "x" end }
   m.set_provider("pokemon.core", provider)
-  return m, Icons.new(m.fb), provider
+  return m, Icons.new(m.uz), provider
 end
 
 t.case("icons: icon_rev gives a folder per revision", function()
