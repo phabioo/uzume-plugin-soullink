@@ -311,5 +311,17 @@
   "rand_chip": "Randomisiert",
   "rand_mode_each": "jede Person ihre eigene Welt",
   "rand_mode_same": "dieselbe Welt für alle",
-  "rand_own_variant": "eigene Variante"
+  "rand_own_variant": "eigene Variante",
+  "rs_balls_required": "Begegnungen zählen erst mit Pokébällen",
+  "rs_balls_required_hint": "Begegnungen vor deinem ersten Pokéball zählen nicht und verbrauchen die Route nicht.",
+  "balls_hint": "Begegnungen zählen nicht, bis du Pokébälle hast.",
+  "balls_have": "Ich habe Pokébälle",
+  "loc_no_balls": "Zählt nicht: noch keine Pokébälle",
+  "ev_why_no_balls": "Zählt nicht: noch keine Pokébälle.",
+  "reopen_route": "Route wieder öffnen",
+  "c_title_reopen": "Route wieder öffnen?",
+  "c_title_reopen_route": "{route} für dich wieder öffnen?",
+  "c_reopen_text": "{route} ist wieder offen: deine nächste Begegnung dort zählt als erste.",
+  "c_submit_reopen": "Route öffnen",
+  "ev_c_reopen": "{player} hat {route} für {target} wieder geöffnet."
 }

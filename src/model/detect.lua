@@ -224,7 +224,9 @@ local function handle_encounter(st, cfg, pk, foe, horde, facts, family, opts)
   local r = cfg.rules
   local existing, rs = live_entry(st, opts, pk)
   local clash = type_clash(cfg, opts, pk, foe.species, foe.form)
-  if horde and not r.hordes_count then
+  if r.balls_required and not st.balls then
+    fact.why = "no_balls" -- before the first Poke Ball: does not count, does not use up the route
+  elseif horde and not r.hordes_count then
     fact.why = "horde"
   elseif pk == nil then
     fact.why = "no_place"
@@ -247,6 +249,7 @@ end
 
 local function handle_catch(st, cfg, c, pk, starter, facts, family, opts)
   local rec, r = c.rec, cfg.rules
+  if not starter and not rec.egg then st.balls = true end -- a catch implies a ball
   local dupe = r.dupes_clause and owns_line(st, rec.species, family, opts) -- before the mon is added
   local clash, ty = type_clash(cfg, opts, pk, rec.species, rec.form)
   local mon = {
@@ -357,6 +360,7 @@ end
 ---           types = function(species, form) -> primary type id|nil,
 ---           partner_types = function(route key) -> { [type id] = true } of the partners' creatures there,
 ---           first = "auto"|"baseline"|"starter" (what the first complete snapshot means),
+---           balls = bool (pokemon-core balls() reported count > 0 right now; sets st.balls for good),
 ---           game = { id, language } }
 --- Tracking starts with the first snapshot where team and boxes are both known: then either
 --- everything present is baseline, or (first = "starter", or "auto" with exactly one mon in the
@@ -375,6 +379,14 @@ function D.diff(prev, snap, cfg, opts)
   if opts.areas then
     sync_ids(st, "areas", opts.areas.order, state.MAX_AREAS)
     sync_ids(st, "places", opts.areas.places, state.MAX_PLACES)
+  end
+
+  -- Poke Balls (rule balls_required): reported by the core (opts.balls), or implied by an earlier catch
+  if opts.balls == true then st.balls = true end
+  if not st.balls then
+    for _, e in pairs(st.routes) do
+      if e.status == "caught" and e.kind == "wild" then st.balls = true; break end
+    end
   end
 
   local loc_now = type(snap.location) == "table" and snap.location or {}

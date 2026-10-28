@@ -13,6 +13,7 @@ C.TYPE = "soullink.correction"
 C.MAX_PAYLOAD = 4096
 C.KINDS = {
   "doesnt_count", "undo_death", "set_group", "add", "mark_missed", "mark_dead", "set_gift", "revert",
+  "reopen",
 }
 C.REASONS = { dupe = true, shiny = true, wrong = true }
 C.ADD_STATES = { team = true, box = true, dead = true }
@@ -55,6 +56,9 @@ function C.add(a)
 end
 
 function C.mark_missed(a) return spec({ kind = "mark_missed", user = a.user, route = a.route }) end
+
+--- Reopen a route that was closed as missed (typically automatically): its next encounter is the first again.
+function C.reopen(a) return spec({ kind = "reopen", user = a.user, route = a.route }) end
 
 function C.mark_dead(a) return spec({ kind = "mark_dead", user = a.user, mon = a.mon, reason = a.reason }) end
 
@@ -138,6 +142,8 @@ function C.route_overrides(effective, user, st)
           if h then excluded[h] = c end
           ov[p.route] = { kind = "reopen", seq = c.seq }
         end
+      elseif p.kind == "reopen" then
+        if not holder(p.route, c.seq) then ov[p.route] = { kind = "reopen", seq = c.seq } end
       elseif p.kind == "mark_missed" then
         if not holder(p.route, c.seq) then ov[p.route] = { kind = "missed", seq = c.seq } end
       elseif p.kind == "add" then
@@ -180,6 +186,7 @@ local checks = {
       and opt(p.nickname, function(n) return is_str(n, 48) end) and opt(p.form, is_int)
   end,
   mark_missed = function(p) return is_str(p.user) and is_route_ref(p.route) end,
+  reopen = function(p) return is_str(p.user) and is_route_ref(p.route) end,
   mark_dead = function(p) return is_str(p.user) and is_str(p.mon) end,
   set_gift = function(p) return is_str(p.user) and is_str(p.mon) and type(p.gift) == "boolean" end,
   revert = function(p) return is_int(p.target) and p.target > 0 end,

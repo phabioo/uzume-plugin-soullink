@@ -22,6 +22,8 @@ function M.to_spec(corr)
       level = corr.level, state = corr.state or "box" })
   elseif k == "mark_missed" then
     spec = corrections.mark_missed({ user = corr.user, route = corr.route })
+  elseif k == "reopen" then
+    spec = corrections.reopen({ user = corr.user, route = corr.route })
   elseif k == "mark_dead" then
     spec = corrections.mark_dead({ user = corr.user, mon = corr.mon, reason = corr.note })
   elseif k == "set_gift" then
@@ -138,6 +140,10 @@ function M.section(ctx)
   elseif k == "mark_missed" then
     title = tr("c_title_mark_missed_route", { route = route_label })
     add({ type = "text", id = "c-text", text = tr("c_missed_text", { route = route_label, others = others }), style = "meta" })
+    add(who_sees(ctx, others))
+  elseif k == "reopen" then
+    title = tr("c_title_reopen_route", { route = route_label })
+    add({ type = "text", id = "c-text", text = tr("c_reopen_text", { route = route_label }), style = "meta" })
     add(who_sees(ctx, others))
   elseif k == "mark_dead" then
     add({ type = "text", id = "c-text", text = tr("c_dead_text"), style = "meta" })

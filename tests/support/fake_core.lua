@@ -57,6 +57,8 @@ function F.new(over)
   p.areas = guard("areas", function() return w.areas end)
   p.locations = guard("locations", function() return w.locations end)
   p.diagnostics = guard("diagnostics", function() return w.diag end)
+  -- v0.6.4 balls(): { count = n }; world.balls overrides. Older cores: `core.provider.balls = nil`.
+  p.balls = guard("balls", function() return w.balls or { count = 0 } end)
   p.battle = guard("battle", function() return w.battle end)
   p.encounters = guard("encounters", function() return w.encounters end)
   p.zone_info = guard("zone_info", function(z) return w.zone_info[z] end)

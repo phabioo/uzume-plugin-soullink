@@ -68,6 +68,8 @@ local function location(ctx, me)
   local sub
   if status == "caught" and cell then
     sub = common.cell_text(cell, tr)
+  elseif status == "open" and ctx.view.rules.balls_required and not me.balls then
+    sub = tr("loc_no_balls")
   else
     sub = tr(sub_key)
   end
@@ -133,6 +135,26 @@ local function encounter_hint(ctx, me)
     head,
     { type = "row", id = "enc-acts", gap = 8, align = "center", children = act },
   } }
+end
+
+--- Rule balls_required while the person has no Poke Balls: hint and the manual "I have Poke Balls" action.
+local function balls_hint(ctx, me)
+  local tr = ctx.tr
+  if ctx.readonly or not ctx.view.rules.balls_required or me.balls then return nil end
+  return { type = "card", id = "balls", children = {
+    { type = "text", id = "balls-text", text = tr("balls_hint"), style = "meta" },
+    { type = "button", id = "balls-have", label = tr("balls_have"), action = "have_balls", variant = "quiet" },
+  } }
+end
+
+--- A route that detection closed as missed: offer to reopen it.
+local function reopen_hint(ctx, me)
+  local tr = ctx.tr
+  if ctx.readonly or me.place.status ~= "missed" or not me.place.key then return nil end
+  local row = common.row_of(ctx.view, me.place.key)
+  local cell = row and row.cells[me.id]
+  if not (cell and cell.auto) then return nil end
+  return { type = "button", id = "reopen", label = tr("reopen_route"), action = "reopen_open", value = me.place.key, variant = "quiet" }
 end
 
 local function partners(ctx, me, i, m, groups)
@@ -235,8 +257,12 @@ function M.build(ctx)
   if picker then kids[#kids + 1] = picker end
   local hint = encounter_hint(ctx, me)
   if hint then kids[#kids + 1] = hint end
+  local balls = balls_hint(ctx, me)
+  if balls then kids[#kids + 1] = balls end
+  local reopen = reopen_hint(ctx, me)
+  if reopen then kids[#kids + 1] = reopen end
   -- the "Doesn't count" form (5f-1) is opened from here; every other correction lives on the run screen
-  if ctx.ui.corr and ctx.ui.corr.kind == "doesnt_count" then
+  if ctx.ui.corr and (ctx.ui.corr.kind == "doesnt_count" or ctx.ui.corr.kind == "reopen") then
     local corr = corr_ui.section(ctx)
     if corr then kids[#kids + 1] = corr end
   end

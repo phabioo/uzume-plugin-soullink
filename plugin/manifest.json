@@ -1,7 +1,7 @@
 {
   "id": "uzume.soullink",
   "name": "SoulLink & Nuzlocke",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "issues_url": "https://github.com/phabioo/uzume-plugin-soullink",
   "api": 1,
   "type": "script",
@@ -27,7 +27,8 @@
     { "key": "rules.pairs_differ_primary_type", "type": "boolean", "label": "rs_pairs_differ_primary_type", "hint": "rs_pairs_differ_primary_type_hint", "default": false },
     { "key": "rules.only_linked_in_team", "type": "boolean", "label": "rs_only_linked_in_team", "hint": "rs_only_linked_in_team_hint", "default": false },
     { "key": "rules.nickname_required", "type": "boolean", "label": "rs_nickname_required", "hint": "rs_nickname_required_hint", "default": true },
-    { "key": "rules.level_caps", "type": "boolean", "label": "rs_level_caps", "hint": "rs_level_caps_hint", "default": true }
+    { "key": "rules.level_caps", "type": "boolean", "label": "rs_level_caps", "hint": "rs_level_caps_hint", "default": true },
+    { "key": "rules.balls_required", "type": "boolean", "label": "rs_balls_required", "hint": "rs_balls_required_hint", "default": true }
   ],
   "ui": {
     "panel": { "title": "SoulLink" },

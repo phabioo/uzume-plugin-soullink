@@ -209,7 +209,7 @@ end)
 -- ---------------------------------------------------------------- controller
 
 local function boot(world)
-  local run = B.run({ "Lena" })
+  local run = B.run({ "Lena" }, B.no_balls_rule())
   local m = mock.new({ run = { current = run }, game = { code = "000400000011C400", language = "en" }, video = true })
   local core = fake_core.new(world)
   m.set_provider("pokemon.core", core.provider)

@@ -16,12 +16,14 @@ R.DEFAULTS = {
   only_linked_in_team = false,
   nickname_required = true,
   level_caps = true,
+  balls_required = true,
 }
 
 --- Rule keys in a fixed order (for UI lists).
 R.ORDER = {
   "first_encounter_only", "dupes_clause", "shiny_clause", "hordes_count",
   "pairs_differ_primary_type", "only_linked_in_team", "nickname_required", "level_caps",
+  "balls_required",
 }
 
 --- Fresh copy of the default rules.

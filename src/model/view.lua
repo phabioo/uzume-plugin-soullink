@@ -164,7 +164,7 @@ local function cell_state(w, route)
     return ov.kind == "missed" and "missed" or "open"
   end
   if e then
-    if e.status == "missed" then return "missed" end
+    if e.status == "missed" then return "missed", nil, e end
     if e.status == "encounter" then return "encounter", nil, e end
   end
   return "open"
@@ -441,7 +441,7 @@ function V.view(run, states, events, cfg)
     if badges > stats.badges_max then stats.badges_max = badges end
     out_players[i] = {
       id = pl.id, name = pl.name, color = pl.color, game_id = pl.game_id, own_variant = pl.own_variant, place = place_view,
-      team = team, box_count = box, alive = alive, dead = dead, badges = badges,
+      team = team, box_count = box, alive = alive, dead = dead, badges = badges, balls = w.st.balls == true,
       level_cap = cfg.rules.level_caps and oras.level_cap(badges) or nil, mons = views, ids = w.ids,
     }
   end
@@ -473,6 +473,7 @@ function V.view(run, states, events, cfg)
       elseif e then
         cell.species = e.species
         cell.species_name = sname(e.species)
+        if st_ == "missed" then cell.auto = true end -- closed by detection, not by a person
       end
       if st_ == "open" or st_ == "encounter" then done = false end
       cells[pl.id] = cell

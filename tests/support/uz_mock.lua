@@ -70,7 +70,7 @@ function M.new(opts)
   local mock = { logs = {}, events = {}, provided = {}, watches = {}, dev_watches = {}, cache_files = {} }
   local regions = opts.memory or {}
   mock.regions = regions
-  local uz = { api = 1, plugin = { id = "uzume.soullink", version = "0.9.2" } }
+  local uz = { api = 1, plugin = { id = "uzume.soullink", version = "0.9.3" } }
   uz.game = opts.game or {}
   if opts.language and not uz.game.language then uz.game.language = opts.language end
   mock.uz = uz
