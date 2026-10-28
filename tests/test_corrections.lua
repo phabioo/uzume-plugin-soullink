@@ -23,7 +23,7 @@ t.case("builders produce valid manual specs", function()
     local ok, why = C.validate_spec(s)
     t.ok(ok, "spec " .. i .. ": " .. tostring(why))
   end
-  t.eq(#C.KINDS, 8)
+  t.eq(#C.KINDS, 9)
   t.eq(C.set_gift({ user = "u", mon = "m" }).payload.gift, true)
 end)
 

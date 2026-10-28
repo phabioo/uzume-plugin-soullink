@@ -33,6 +33,8 @@ S.MAX_PLACES = 600
 ---   pend   = { since?, zone?, loc? }   a wild battle ended and its encounter is still undecided: it becomes
 ---            caught when the mon shows up, missed when the player moves on, the next wild battle starts or
 ---            60 s pass (model.detect)
+---   balls = true   the person has Poke Balls (rule balls_required): set by pokemon-core balls() > 0, a detected
+---            catch or the manual action; never reset (only present when true)
 ---   enc_seq = n   last handled pokemon-core encounters() seq
 ---   mons[..].ty = n   primary type id (only with the rule pairs_differ_primary_type)
 function S.new(game)

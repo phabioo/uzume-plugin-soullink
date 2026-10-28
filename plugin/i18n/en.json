@@ -311,5 +311,17 @@
   "rand_chip": "Randomized",
   "rand_mode_each": "each person their own world",
   "rand_mode_same": "same world for everyone",
-  "rand_own_variant": "own variant"
+  "rand_own_variant": "own variant",
+  "rs_balls_required": "Encounters count only once you have Poké Balls",
+  "rs_balls_required_hint": "Encounters before your first Poké Ball do not count and do not use up the route.",
+  "balls_hint": "Encounters don't count until you have Poké Balls.",
+  "balls_have": "I have Poké Balls",
+  "loc_no_balls": "Not counted: no Poké Balls yet",
+  "ev_why_no_balls": "Not counted: no Poké Balls yet.",
+  "reopen_route": "Reopen route",
+  "c_title_reopen": "Reopen route?",
+  "c_title_reopen_route": "Reopen {route} for you?",
+  "c_reopen_text": "{route} is open again: your next encounter there counts as the first.",
+  "c_submit_reopen": "Reopen route",
+  "ev_c_reopen": "{player} reopened {route} for {target}."
 }

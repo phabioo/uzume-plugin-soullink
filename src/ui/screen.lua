@@ -18,7 +18,8 @@ end
 function M.has_map(ctx) return ctx ~= nil and ctx.map ~= nil and (ctx.map.state == "ready" or ctx.map.live == true) end
 
 local RULE_ORDER = { "first_encounter_only", "dupes_clause", "shiny_clause", "hordes_count",
-  "pairs_differ_primary_type", "only_linked_in_team", "nickname_required", "level_caps" }
+  "pairs_differ_primary_type", "only_linked_in_team", "nickname_required", "level_caps",
+  "balls_required" }
 
 local function rules_on(view)
   local n = 0
@@ -108,6 +109,10 @@ local function route_detail(ctx)
     }
     if g and g.state == "dead" then
       acts[#acts + 1] = { type = "button", id = "rd-undo", label = tr("undo_death"), action = "undo_open", value = route, variant = "quiet" }
+    end
+    local mycell = row.cells[ctx.me]
+    if mycell and mycell.state == "missed" and mycell.auto then
+      acts[#acts + 1] = { type = "button", id = "rd-reopen", label = tr("reopen_route"), action = "reopen_open", value = route, variant = "quiet" }
     end
     local mine = find_mine(ctx, route)
     if mine then

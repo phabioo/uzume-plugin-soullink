@@ -16,7 +16,7 @@ local util = require("model.util")
 local function boot(o)
   o = o or {}
   local run = B.run({ "Lena", "Jonas" })
-  run.settings = o.settings or {}
+  run.settings = B.no_balls_rule(o.settings)
   local m = mock.new({ run = { current = run, states = o.states }, game = { code = "000400000011C400", language = "en" },
     no_ui_open = o.no_ui_open, video = true })
   local core = fake_core.new(o.world)
@@ -209,7 +209,7 @@ t.case("screen: frame, tabs, corrections and rules live here", function()
   t.ok(ui_validator.find(s, "head-summary") and not ui_validator.find(s, "head-stats"))
   t.eq(ui_validator.find(s, "rules-list"), nil)
   e.act("rules_toggle")
-  t.eq(#ui_validator.find(e.m.ui.trees.screen, "rules-list").rows, 9)
+  t.eq(#ui_validator.find(e.m.ui.trees.screen, "rules-list").rows, 10)
   e.act("tab", 2)
   t.ok(ui_validator.find(e.m.ui.trees.screen, "tabs").selected == 2)
   -- Team & box carries the per-mon corrections

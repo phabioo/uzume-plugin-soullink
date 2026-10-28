@@ -34,6 +34,7 @@ A.NOTICE_TRIES = 40  -- renders to wait for the state that shows a death
 A.MAX_ZONES = 120    -- learned zone mappings kept in the own state
 A.CAL_STEPS = { [2] = true, [10] = true, [40] = true }
 A.NAME_BUDGET = 16   -- core name() lookups per poll
+A.BALLS_MS = 5000   -- pokemon.core balls() while the person has no Poke Balls yet (rule balls_required)
 A.CORE = "pokemon.core"
 
 function A.new(uz, host)
@@ -374,7 +375,7 @@ function A:poll(full)
   self:refresh_icon_check()
   -- corrections about this player's routes (doesn't count, missed, added by hand) shape detection too
   local overrides, excluded = corrections.route_overrides(corrections.effective(self.events), self.me, self.st)
-  local st, facts = detect.diff(self.st, snap, cfg, { now = self.uz.clock(), overrides = overrides, excluded = excluded, game = { id = game.code, language = game.language },
+  local st, facts = detect.diff(self.st, snap, cfg, { now = self.uz.clock(), balls = self:balls_now(snap, cfg, self.uz.clock()), overrides = overrides, excluded = excluded, game = { id = game.code, language = game.language },
     zones = view_mod.merge_zones(self.run, self:states()),
     areas = self.areas_info, areas_unsupported = self.areas_unsupported,
     names = { species = function(id) return self:game_name("species", id) end },
@@ -382,6 +383,28 @@ function A:poll(full)
     partner_types = function(route) return self:partner_types(route) end })
   self:commit(st, facts)
   self:gym_snapshot(snap)
+end
+
+--- pokemon.core balls() (optional, core >= 0.6.4): true when the person owns Poke Balls. Asked only while the
+--- rule balls_required is on and the own state has no flag yet; at the start of a battle or a new encounter and
+--- otherwise at most every BALLS_MS. A core without balls() (error or "unsupported") is not asked again.
+function A:balls_now(snap, cfg, now)
+  local st = self.st
+  if not cfg.rules.balls_required or (st and st.balls) or self.balls_unsupported then return false end
+  local bat = type(snap.battle) == "table" and snap.battle or {}
+  local fresh = bat.active == true and not (st and st.inb)
+  if not fresh and type(snap.encounters) == "table" then
+    for _, e in ipairs(snap.encounters) do
+      if type(e) == "table" and (math.type(e.seq) ~= "integer" or e.seq > ((st and st.enc_seq) or 0)) then fresh = true; break end
+    end
+  end
+  if not fresh and self.balls_next and now < self.balls_next then return false end
+  self.balls_next = now + A.BALLS_MS
+  local ok, res, why = pcall(self.uz.call, A.CORE, "balls")
+  if not ok or why == "unsupported" then self.balls_unsupported = true; return false end
+  if type(res) ~= "table" then return false end
+  local n = res.count
+  return type(n) == "number" and n > 0
 end
 
 --- Save snapshot "before Gym N" once when a gym leader battle starts (model.gym decides). Needs the app's
@@ -909,6 +932,14 @@ function A:on_action(action, value, slot)
       st.badges = value
       self:commit(st, {})
     end
+  elseif action == "have_balls" then
+    if self.st and not self.st.balls then
+      local st = util.copy(self.st)
+      st.balls = true
+      self:commit(st, {})
+    end
+  elseif action == "reopen_open" then
+    if type(value) == "string" then self:open_corr({ kind = "reopen", route = value }) end
   elseif action == "mark_dead" then
     if type(value) == "string" then
       self:post_correction(corrections.mark_dead({ user = self.me, mon = value }))

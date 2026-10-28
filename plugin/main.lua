@@ -53,6 +53,7 @@ A.NOTICE_TRIES = 40  -- renders to wait for the state that shows a death
 A.MAX_ZONES = 120    -- learned zone mappings kept in the own state
 A.CAL_STEPS = { [2] = true, [10] = true, [40] = true }
 A.NAME_BUDGET = 16   -- core name() lookups per poll
+A.BALLS_MS = 5000   -- pokemon.core balls() while the person has no Poke Balls yet (rule balls_required)
 A.CORE = "pokemon.core"
 
 function A.new(uz, host)
@@ -393,7 +394,7 @@ function A:poll(full)
   self:refresh_icon_check()
   -- corrections about this player's routes (doesn't count, missed, added by hand) shape detection too
   local overrides, excluded = corrections.route_overrides(corrections.effective(self.events), self.me, self.st)
-  local st, facts = detect.diff(self.st, snap, cfg, { now = self.uz.clock(), overrides = overrides, excluded = excluded, game = { id = game.code, language = game.language },
+  local st, facts = detect.diff(self.st, snap, cfg, { now = self.uz.clock(), balls = self:balls_now(snap, cfg, self.uz.clock()), overrides = overrides, excluded = excluded, game = { id = game.code, language = game.language },
     zones = view_mod.merge_zones(self.run, self:states()),
     areas = self.areas_info, areas_unsupported = self.areas_unsupported,
     names = { species = function(id) return self:game_name("species", id) end },
@@ -401,6 +402,28 @@ function A:poll(full)
     partner_types = function(route) return self:partner_types(route) end })
   self:commit(st, facts)
   self:gym_snapshot(snap)
+end
+
+--- pokemon.core balls() (optional, core >= 0.6.4): true when the person owns Poke Balls. Asked only while the
+--- rule balls_required is on and the own state has no flag yet; at the start of a battle or a new encounter and
+--- otherwise at most every BALLS_MS. A core without balls() (error or "unsupported") is not asked again.
+function A:balls_now(snap, cfg, now)
+  local st = self.st
+  if not cfg.rules.balls_required or (st and st.balls) or self.balls_unsupported then return false end
+  local bat = type(snap.battle) == "table" and snap.battle or {}
+  local fresh = bat.active == true and not (st and st.inb)
+  if not fresh and type(snap.encounters) == "table" then
+    for _, e in ipairs(snap.encounters) do
+      if type(e) == "table" and (math.type(e.seq) ~= "integer" or e.seq > ((st and st.enc_seq) or 0)) then fresh = true; break end
+    end
+  end
+  if not fresh and self.balls_next and now < self.balls_next then return false end
+  self.balls_next = now + A.BALLS_MS
+  local ok, res, why = pcall(self.uz.call, A.CORE, "balls")
+  if not ok or why == "unsupported" then self.balls_unsupported = true; return false end
+  if type(res) ~= "table" then return false end
+  local n = res.count
+  return type(n) == "number" and n > 0
 end
 
 --- Save snapshot "before Gym N" once when a gym leader battle starts (model.gym decides). Needs the app's
@@ -928,6 +951,14 @@ function A:on_action(action, value, slot)
       st.badges = value
       self:commit(st, {})
     end
+  elseif action == "have_balls" then
+    if self.st and not self.st.balls then
+      local st = util.copy(self.st)
+      st.balls = true
+      self:commit(st, {})
+    end
+  elseif action == "reopen_open" then
+    if type(value) == "string" then self:open_corr({ kind = "reopen", route = value }) end
   elseif action == "mark_dead" then
     if type(value) == "string" then
       self:post_correction(corrections.mark_dead({ user = self.me, mon = value }))
@@ -1740,6 +1771,7 @@ C.TYPE = "soullink.correction"
 C.MAX_PAYLOAD = 4096
 C.KINDS = {
   "doesnt_count", "undo_death", "set_group", "add", "mark_missed", "mark_dead", "set_gift", "revert",
+  "reopen",
 }
 C.REASONS = { dupe = true, shiny = true, wrong = true }
 C.ADD_STATES = { team = true, box = true, dead = true }
@@ -1782,6 +1814,9 @@ function C.add(a)
 end
 
 function C.mark_missed(a) return spec({ kind = "mark_missed", user = a.user, route = a.route }) end
+
+--- Reopen a route that was closed as missed (typically automatically): its next encounter is the first again.
+function C.reopen(a) return spec({ kind = "reopen", user = a.user, route = a.route }) end
 
 function C.mark_dead(a) return spec({ kind = "mark_dead", user = a.user, mon = a.mon, reason = a.reason }) end
 
@@ -1865,6 +1900,8 @@ function C.route_overrides(effective, user, st)
           if h then excluded[h] = c end
           ov[p.route] = { kind = "reopen", seq = c.seq }
         end
+      elseif p.kind == "reopen" then
+        if not holder(p.route, c.seq) then ov[p.route] = { kind = "reopen", seq = c.seq } end
       elseif p.kind == "mark_missed" then
         if not holder(p.route, c.seq) then ov[p.route] = { kind = "missed", seq = c.seq } end
       elseif p.kind == "add" then
@@ -1907,6 +1944,7 @@ local checks = {
       and opt(p.nickname, function(n) return is_str(n, 48) end) and opt(p.form, is_int)
   end,
   mark_missed = function(p) return is_str(p.user) and is_route_ref(p.route) end,
+  reopen = function(p) return is_str(p.user) and is_route_ref(p.route) end,
   mark_dead = function(p) return is_str(p.user) and is_str(p.mon) end,
   set_gift = function(p) return is_str(p.user) and is_str(p.mon) and type(p.gift) == "boolean" end,
   revert = function(p) return is_int(p.target) and p.target > 0 end,
@@ -2160,7 +2198,9 @@ local function handle_encounter(st, cfg, pk, foe, horde, facts, family, opts)
   local r = cfg.rules
   local existing, rs = live_entry(st, opts, pk)
   local clash = type_clash(cfg, opts, pk, foe.species, foe.form)
-  if horde and not r.hordes_count then
+  if r.balls_required and not st.balls then
+    fact.why = "no_balls" -- before the first Poke Ball: does not count, does not use up the route
+  elseif horde and not r.hordes_count then
     fact.why = "horde"
   elseif pk == nil then
     fact.why = "no_place"
@@ -2183,6 +2223,7 @@ end
 
 local function handle_catch(st, cfg, c, pk, starter, facts, family, opts)
   local rec, r = c.rec, cfg.rules
+  if not starter and not rec.egg then st.balls = true end -- a catch implies a ball
   local dupe = r.dupes_clause and owns_line(st, rec.species, family, opts) -- before the mon is added
   local clash, ty = type_clash(cfg, opts, pk, rec.species, rec.form)
   local mon = {
@@ -2293,6 +2334,7 @@ end
 ---           types = function(species, form) -> primary type id|nil,
 ---           partner_types = function(route key) -> { [type id] = true } of the partners' creatures there,
 ---           first = "auto"|"baseline"|"starter" (what the first complete snapshot means),
+---           balls = bool (pokemon-core balls() reported count > 0 right now; sets st.balls for good),
 ---           game = { id, language } }
 --- Tracking starts with the first snapshot where team and boxes are both known: then either
 --- everything present is baseline, or (first = "starter", or "auto" with exactly one mon in the
@@ -2311,6 +2353,14 @@ function D.diff(prev, snap, cfg, opts)
   if opts.areas then
     sync_ids(st, "areas", opts.areas.order, state.MAX_AREAS)
     sync_ids(st, "places", opts.areas.places, state.MAX_PLACES)
+  end
+
+  -- Poke Balls (rule balls_required): reported by the core (opts.balls), or implied by an earlier catch
+  if opts.balls == true then st.balls = true end
+  if not st.balls then
+    for _, e in pairs(st.routes) do
+      if e.status == "caught" and e.kind == "wild" then st.balls = true; break end
+    end
   end
 
   local loc_now = type(snap.location) == "table" and snap.location or {}
@@ -2611,12 +2661,14 @@ R.DEFAULTS = {
   only_linked_in_team = false,
   nickname_required = true,
   level_caps = true,
+  balls_required = true,
 }
 
 --- Rule keys in a fixed order (for UI lists).
 R.ORDER = {
   "first_encounter_only", "dupes_clause", "shiny_clause", "hordes_count",
   "pairs_differ_primary_type", "only_linked_in_team", "nickname_required", "level_caps",
+  "balls_required",
 }
 
 --- Fresh copy of the default rules.
@@ -2806,6 +2858,8 @@ S.MAX_PLACES = 600
 ---   pend   = { since?, zone?, loc? }   a wild battle ended and its encounter is still undecided: it becomes
 ---            caught when the mon shows up, missed when the player moves on, the next wild battle starts or
 ---            60 s pass (model.detect)
+---   balls = true   the person has Poke Balls (rule balls_required): set by pokemon-core balls() > 0, a detected
+---            catch or the manual action; never reset (only present when true)
 ---   enc_seq = n   last handled pokemon-core encounters() seq
 ---   mons[..].ty = n   primary type id (only with the rule pairs_differ_primary_type)
 function S.new(game)
@@ -3162,7 +3216,7 @@ local function cell_state(w, route)
     return ov.kind == "missed" and "missed" or "open"
   end
   if e then
-    if e.status == "missed" then return "missed" end
+    if e.status == "missed" then return "missed", nil, e end
     if e.status == "encounter" then return "encounter", nil, e end
   end
   return "open"
@@ -3439,7 +3493,7 @@ function V.view(run, states, events, cfg)
     if badges > stats.badges_max then stats.badges_max = badges end
     out_players[i] = {
       id = pl.id, name = pl.name, color = pl.color, game_id = pl.game_id, own_variant = pl.own_variant, place = place_view,
-      team = team, box_count = box, alive = alive, dead = dead, badges = badges,
+      team = team, box_count = box, alive = alive, dead = dead, badges = badges, balls = w.st.balls == true,
       level_cap = cfg.rules.level_caps and oras.level_cap(badges) or nil, mons = views, ids = w.ids,
     }
   end
@@ -3471,6 +3525,7 @@ function V.view(run, states, events, cfg)
       elseif e then
         cell.species = e.species
         cell.species_name = sname(e.species)
+        if st_ == "missed" then cell.auto = true end -- closed by detection, not by a person
       end
       if st_ == "open" or st_ == "encounter" then done = false end
       cells[pl.id] = cell
@@ -4013,6 +4068,8 @@ function M.to_spec(corr)
       level = corr.level, state = corr.state or "box" })
   elseif k == "mark_missed" then
     spec = corrections.mark_missed({ user = corr.user, route = corr.route })
+  elseif k == "reopen" then
+    spec = corrections.reopen({ user = corr.user, route = corr.route })
   elseif k == "mark_dead" then
     spec = corrections.mark_dead({ user = corr.user, mon = corr.mon, reason = corr.note })
   elseif k == "set_gift" then
@@ -4129,6 +4186,10 @@ function M.section(ctx)
   elseif k == "mark_missed" then
     title = tr("c_title_mark_missed_route", { route = route_label })
     add({ type = "text", id = "c-text", text = tr("c_missed_text", { route = route_label, others = others }), style = "meta" })
+    add(who_sees(ctx, others))
+  elseif k == "reopen" then
+    title = tr("c_title_reopen_route", { route = route_label })
+    add({ type = "text", id = "c-text", text = tr("c_reopen_text", { route = route_label }), style = "meta" })
     add(who_sees(ctx, others))
   elseif k == "mark_dead" then
     add({ type = "text", id = "c-text", text = tr("c_dead_text"), style = "meta" })
@@ -4270,6 +4331,8 @@ local function location(ctx, me)
   local sub
   if status == "caught" and cell then
     sub = common.cell_text(cell, tr)
+  elseif status == "open" and ctx.view.rules.balls_required and not me.balls then
+    sub = tr("loc_no_balls")
   else
     sub = tr(sub_key)
   end
@@ -4335,6 +4398,26 @@ local function encounter_hint(ctx, me)
     head,
     { type = "row", id = "enc-acts", gap = 8, align = "center", children = act },
   } }
+end
+
+--- Rule balls_required while the person has no Poke Balls: hint and the manual "I have Poke Balls" action.
+local function balls_hint(ctx, me)
+  local tr = ctx.tr
+  if ctx.readonly or not ctx.view.rules.balls_required or me.balls then return nil end
+  return { type = "card", id = "balls", children = {
+    { type = "text", id = "balls-text", text = tr("balls_hint"), style = "meta" },
+    { type = "button", id = "balls-have", label = tr("balls_have"), action = "have_balls", variant = "quiet" },
+  } }
+end
+
+--- A route that detection closed as missed: offer to reopen it.
+local function reopen_hint(ctx, me)
+  local tr = ctx.tr
+  if ctx.readonly or me.place.status ~= "missed" or not me.place.key then return nil end
+  local row = common.row_of(ctx.view, me.place.key)
+  local cell = row and row.cells[me.id]
+  if not (cell and cell.auto) then return nil end
+  return { type = "button", id = "reopen", label = tr("reopen_route"), action = "reopen_open", value = me.place.key, variant = "quiet" }
 end
 
 local function partners(ctx, me, i, m, groups)
@@ -4437,8 +4520,12 @@ function M.build(ctx)
   if picker then kids[#kids + 1] = picker end
   local hint = encounter_hint(ctx, me)
   if hint then kids[#kids + 1] = hint end
+  local balls = balls_hint(ctx, me)
+  if balls then kids[#kids + 1] = balls end
+  local reopen = reopen_hint(ctx, me)
+  if reopen then kids[#kids + 1] = reopen end
   -- the "Doesn't count" form (5f-1) is opened from here; every other correction lives on the run screen
-  if ctx.ui.corr and ctx.ui.corr.kind == "doesnt_count" then
+  if ctx.ui.corr and (ctx.ui.corr.kind == "doesnt_count" or ctx.ui.corr.kind == "reopen") then
     local corr = corr_ui.section(ctx)
     if corr then kids[#kids + 1] = corr end
   end
@@ -4472,7 +4559,8 @@ end
 function M.has_map(ctx) return ctx ~= nil and ctx.map ~= nil and (ctx.map.state == "ready" or ctx.map.live == true) end
 
 local RULE_ORDER = { "first_encounter_only", "dupes_clause", "shiny_clause", "hordes_count",
-  "pairs_differ_primary_type", "only_linked_in_team", "nickname_required", "level_caps" }
+  "pairs_differ_primary_type", "only_linked_in_team", "nickname_required", "level_caps",
+  "balls_required" }
 
 local function rules_on(view)
   local n = 0
@@ -4562,6 +4650,10 @@ local function route_detail(ctx)
     }
     if g and g.state == "dead" then
       acts[#acts + 1] = { type = "button", id = "rd-undo", label = tr("undo_death"), action = "undo_open", value = route, variant = "quiet" }
+    end
+    local mycell = row.cells[ctx.me]
+    if mycell and mycell.state == "missed" and mycell.auto then
+      acts[#acts + 1] = { type = "button", id = "rd-reopen", label = tr("reopen_route"), action = "reopen_open", value = route, variant = "quiet" }
     end
     local mine = find_mine(ctx, route)
     if mine then

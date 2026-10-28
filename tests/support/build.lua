@@ -17,10 +17,22 @@ function B.rec(o)
 end
 
 --- cfg with overrides: B.cfg("soullink", { dupes_clause = false })
+--- The rule balls_required is off here (older tests predate it); tests of the rule pass it explicitly.
 function B.cfg(mode, over)
   local cfg = { mode = mode or "nuzlocke", rules = rules.defaults() }
+  cfg.rules.balls_required = false
   for k, v in pairs(over or {}) do cfg.rules[k] = v end
   return cfg
+end
+
+--- Run settings with the rule balls_required switched off (older tests predate it).
+function B.no_balls_rule(settings)
+  settings = settings or {}
+  local mine = settings["uzume.soullink"] or {}
+  settings["uzume.soullink"] = mine
+  mine.rules = mine.rules or {}
+  if mine.rules.balls_required == nil then mine.rules.balls_required = false end
+  return settings
 end
 
 --- Participants list with joined status and color 0..n-1.

@@ -15,7 +15,7 @@ local oras = require("data.oras")
 
 local function boot(o)
   o = o or {}
-  local run = B.run({ "Lena", "Jonas" })
+  local run = B.run({ "Lena", "Jonas" }, B.no_balls_rule())
   local m = mock.new({ run = { current = run, states = o.states }, game = { code = "000400000011C400", language = "en" }, video = true })
   local core = fake_core.new(o.world)
   if o.setup then o.setup(core) end
@@ -390,7 +390,7 @@ t.case("screen: rules are collapsed to a summary, the list opens in a short scro
   t.ok(ui_validator.validate(s))
   t.eq(ui_validator.find(s, "rules-list"), nil)
   t.eq(ui_validator.find(s, "rules-scroll"), nil)
-  t.eq(ui_validator.find(s, "rules-summary").text, "5 of 8 rules on")
+  t.eq(ui_validator.find(s, "rules-summary").text, "5 of 9 rules on")
   t.eq(ui_validator.find(s, "rules-chip").text, "Show rules")
   e.act("rules_toggle", nil, "screen")
   s = e.m.ui.trees.screen
