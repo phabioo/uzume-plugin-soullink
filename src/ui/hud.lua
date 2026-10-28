@@ -14,7 +14,8 @@ function M.build(ctx)
   local me = common.me(ctx)
   if not me then return M.empty(tr) end
   local status = me.place.status
-  local compact = { type = "row", id = "hud-row", gap = 8, align = "center", children = {
+  -- Place and status badge are stacked: in one row the long place text squeezed the badge ("GEFANGE...").
+  local compact = { type = "column", id = "hud-row", gap = 4, align = "start", children = {
     { type = "text", id = "hud-place", style = "body",
       text = tr("hud_place", { place = common.short(common.place_label(me.place, tr, view), 24) }) },
     { type = "badge", id = "hud-status", text = tr("hud_status_" .. status), tone = common.status_tone(status) },
