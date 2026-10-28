@@ -1364,7 +1364,17 @@ function M:files_step(now)
     if now < f.next_at then return false end
     f.next_at = now + M.SCAN_MS
     local ok, list, why = pcall(self.uz.call, M.CORE, "map_candidates")
-    if not ok or why == "unsupported" then f.state = "unsupported"; return true end
+    if not ok or why == "unsupported" then
+      -- The core answers `nil, "unsupported"` for a scan that ended without any image. After it answered
+      -- "not ready" that is an empty result, not a missing feature: keep the files source and say that
+      -- nothing was found, instead of silently dropping the choice back to the screen.
+      if ok and f.state == "scanning" then
+        f.state, f.list, f.idx, f.previews, f.failed, f.retry, f.selected = "done", {}, 1, {}, {}, {}, nil
+      else
+        f.state = "unsupported"
+      end
+      return true
+    end
     if type(list) ~= "table" then
       if f.state ~= "scanning" then f.state, changed = "scanning", true end
       return changed
