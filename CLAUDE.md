@@ -38,5 +38,5 @@ uzume-plugin-soullink is the SoulLink/Nuzlocke plugin. A group of 2 to 4 players
 
 ## Pointers
 
-- Plan and status: `docs/roadmap.md`. Workflow, roles and brief template: `docs/workflow.md`. UI design: `docs/design/README.md`.
+- Open work: GitHub issues and milestones; direction and history: `docs/roadmap.md`. Workflow, roles and brief template: `docs/workflow.md`. UI design: `docs/design/README.md`.
 - Uzume docs: https://github.com/phabioo/uzume (`docs/architecture/12-plugins.md`, `docs/adr/0023-plugins.md`).
