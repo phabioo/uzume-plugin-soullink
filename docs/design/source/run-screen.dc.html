@@ -9,7 +9,7 @@
 <x-dc>
 <div style="width:1440px;height:900px;background:{{ t.bg }};color:{{ t.text }};display:grid;grid-template-columns:232px minmax(0,1fr);overflow:hidden;border-radius:10px;box-shadow:0 30px 60px rgba(0,0,0,.25);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:13px">
   <aside style="background:{{ t.side }};border-right:1px solid {{ t.line }};display:flex;flex-direction:column;padding:24px 16px;gap:28px">
-    <div style="display:flex;align-items:center;gap:10px;padding:0 8px"><dc-import name="framebeam-mark" concept="a" product="{{ product }}" palette="signal" tone="{{ markTone }}" size="22" hint-size="22px,22px"></dc-import><div style="font-weight:600;font-size:16px">{{ appName }}</div></div>
+    <div style="display:flex;align-items:center;gap:10px;padding:0 8px"><dc-import name="uzume-mark" concept="a" product="{{ product }}" palette="signal" tone="{{ markTone }}" size="22" hint-size="22px,22px"></dc-import><div style="font-weight:600;font-size:16px">{{ appName }}</div></div>
     <nav style="display:flex;flex-direction:column;gap:2px;font-size:14px"><sc-for list="{{ nav }}" as="n" hint-placeholder-count="5"><div style="padding:{{ n.pad }};border-radius:6px;background:{{ n.bg }};box-shadow:{{ n.ring }};font-weight:{{ n.fw }};color:{{ n.fg }};display:flex;align-items:center;gap:8px"><sc-if value="{{ n.icon }}" hint-placeholder-val="{{ false }}"><span style="width:16px;height:16px;border-radius:4px;background:{{ t.chip }};font:600 8px/16px 'IBM Plex Mono',monospace;text-align:center;color:{{ t.text }}">SL</span></sc-if>{{ n.l }}</div></sc-for></nav>
   </aside>
   <main style="display:flex;flex-direction:column;min-width:0;padding:22px 32px 24px;gap:14px;overflow:hidden">
@@ -123,7 +123,7 @@ class Component extends DCLogic {
       ['Sat 21:40', 'Jonas', 'Emberkit “Ash” fainted on Route 116', 0, 'Jonas’s Player']
     ].map(([tt, w, m, man, src]) => ({ t: tt, i: w[0], c: C[w], m, src, ...tag(man) }));
     return {
-      t, light, theme: light ? 'light' : 'dark', product: hub ? 'hub' : 'player', appName: hub ? 'FrameBeam Hub' : 'FrameBeam Player', markTone: light ? 'color-light' : undefined, nav, tabs,
+      t, light, theme: light ? 'light' : 'dark', product: hub ? 'hub' : 'player', appName: hub ? 'Uzume server' : 'Uzume app', markTone: light ? 'color-light' : undefined, nav, tabs,
       players: names.map(n => ({ i: n[0], c: C[n], loc: loc[n], up: n.toUpperCase() })),
       isMap: tab === 'map', isRoutes: tab === 'routes', isTeam: tab === 'team', isGrave: tab === 'grave', isLog: tab === 'log',
       routeRows, teams, grave, log
