@@ -524,10 +524,28 @@ function A:badge_posted(index)
   return false
 end
 
+--- True when the newest place event of the own participant already records this place, so a restart
+--- with lost or fresh state does not log the unchanged location again. Same identity as detection
+--- (`place_identity`): route key, else location id, else name (only when neither side has an id).
+function A:place_posted(f)
+  for i = #self.events, 1, -1 do
+    local ev = self.events[i]
+    if ev.type == events.TYPES.place and ev.user_id == self.me and type(ev.payload) == "table" then
+      local p = ev.payload
+      if f.key ~= nil then return p.route == f.key end
+      if p.route ~= nil then return false end
+      if f.loc ~= nil or p.loc ~= nil then return p.loc == f.loc end
+      return p.name ~= nil and p.name == f.name
+    end
+  end
+  return false
+end
+
 function A:post_fact(f)
   local spec = events.from_fact(f, self.me)
   if not spec or not self:writable() then return end
   if f.kind == "badge" and self:badge_posted(f.index) then return end
+  if f.kind == "place" and not f.manual and self:place_posted(f) then return end
   spec.text = self:fact_text(f)
   local ok, err = pcall(self.uz.run.event, spec)
   if not ok then warn_once(self, "event", "event refused: " .. tostring(err)) end
@@ -2472,7 +2490,7 @@ local function put(t, k, v) if v ~= nil then t[k] = v end end
 ---   catch     payload { user, mon, species, species_name?, form?, nickname?, level?, shiny?, route?, counts, why?, gift?, starter?, where }
 ---   death     payload { user, mon, species, species_name?, nickname?, route?, deaths }
 ---   encounter payload { user, outcome = "seen"|"missed", route?, species?, species_name?, form?, shiny?, horde?, counts, why? }
----   place     payload { user, route?, name?, manual }
+---   place     payload { user, route?, name?, loc?, manual }
 ---   badge     payload { user, index, count } (badge number 1..8; no names)
 function E.from_fact(fact, user)
   local k = fact.kind
@@ -2503,7 +2521,7 @@ function E.from_fact(fact, user)
     p.index, p.count = fact.index, fact.count
     return { type = E.TYPES.badge, payload = p, source = "automatic" }
   elseif k == "place" then
-    put(p, "route", fact.key); put(p, "name", fact.name)
+    put(p, "route", fact.key); put(p, "name", fact.name); put(p, "loc", fact.loc)
     p.manual = fact.manual == true
     return { type = E.TYPES.place, payload = p, source = "automatic" }
   end
