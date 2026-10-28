@@ -2,13 +2,13 @@
 
 UI design of the SoulLink & Nuzlocke plugin: screens 5a-5i from the Claude Design handoff (Turn 6, part 1 and 2) and the correction pass of 2026-10-11 (Turn 7, ids with `-2`). Accepted by Fabio on 2026-10-11. At the time of the handoff plugin API v1 was planned (0.11) and not implemented; this is design, not a description of working code.
 
-Platform design (tokens, slots, blocks, component sheet, Player and Hub shell, hotkeys, notices): https://github.com/phabioo/uzume/tree/main/docs/design. The screens here use only platform blocks; the platform components they import (`game-header`, `game-panel`, `settings-row`, `block-sheet`, `plugin-settings-screen`, `framebeam-mark`, `diag-overlay`) are not copied here.
+Platform design (tokens, slots, blocks, component sheet, app and server shell, hotkeys, notices): https://github.com/phabioo/uzume/tree/main/docs/design. The screens here use only platform blocks; the platform components they import (`game-header`, `game-panel`, `settings-row`, `block-sheet`, `plugin-settings-screen`, `uzume-mark`, `diag-overlay`) are not copied here.
 
 All names are fictional placeholders: game "Coral Saga: Ember / Tide", region "Marisol", creatures such as "Tidepup" (drawn by `creature-icon` as colored shapes), places, characters and items. No game assets, no real creature, place or character names, no hosts except `hub.example.com`. "Nintendo 3DS" and "Azahar" appear only as platform and core names.
 
 ## Source
 
-Files in `source/` are unchanged copies of the handoff (only renamed, `dc-import name=` set to kebab-case, and one real creature name in the round-2 change list replaced by a generic phrase). They do not render standalone: the runtime `support.js` and the platform components are missing. Mock values (user names Max, Lena, Jonas, Sam, run "Ember & Tide", versions, `hub.example.com`) are illustrative.
+Files in `source/` are unchanged copies of the handoff (only renamed, `dc-import name=` set to kebab-case, the old product name replaced by Uzume on 2026-10-28, and one real creature name in the round-2 change list replaced by a generic phrase). They do not render standalone: the runtime `support.js` and the platform components are missing. Mock values (user names Max, Lena, Jonas, Sam, run "Ember & Tide", versions, `hub.example.com`) are illustrative.
 
 | File | Content |
 |---|---|
@@ -16,7 +16,7 @@ Files in `source/` are unchanged copies of the handoff (only renamed, `dc-import
 | `source/soullink-5e-5g-run.dc.html` | Round 1: 5e run screen, 5gh Hub board, 5gs stream view, handoff table with the open questions (120 lines) |
 | `source/plugins-round-2.dc.html` | Round 2: `-2` artboards (platform and SoulLink), component sheet, change list (488 lines) |
 | `source/soullink-panel.dc.html` | In-game panel tab (5b) |
-| `source/run-screen.dc.html` | Run screen, Player and Hub shell (5e, 5gh) with the mock data of the run |
+| `source/run-screen.dc.html` | Run screen, app and server shell (5e, 5gh) with the mock data of the run |
 | `source/hub-run-wizard.dc.html` | Hub web wizard (5ah-2) |
 | `source/region-map.dc.html` | Region map with markers, filters, popover, empty state |
 | `source/creature-icon.dc.html` | Placeholder creature icons: sizes mini 24x18, box 40x30, sprite 68x56; states alive, dead, missed, empty; owner dot |
