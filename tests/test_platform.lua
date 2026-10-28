@@ -1,7 +1,7 @@
 -- Platform features: manifest run_settings, read-only run view (slot `run`), tiles by user_id.
 local t = require("t")
 local B = require("build")
-local mock = require("fb_mock")
+local mock = require("uz_mock")
 local json = require("json")
 local ui_validator = require("ui_validator")
 local controller = require("app.controller")
@@ -100,13 +100,13 @@ t.case("run_settings keys map exactly onto rules.parse input", function()
   t.ok(not rules.parse(B.run({ "A", "B" })).mode_set)
 end)
 
-t.case("manifest declares the run slot and version 0.9.0", function()
-  t.eq(manifest.version, "0.9.0")
+t.case("manifest declares the run slot and version 0.9.1", function()
+  t.eq(manifest.version, "0.9.1")
   t.ok(manifest.ui.run and manifest.ui.run.title)
   t.ok(#manifest.ui.run.title >= 1 and #manifest.ui.run.title <= 40)
 end)
 
---- Run view boot: shell context, no game, read-only fb.run.
+--- Run view boot: shell context, no game, read-only uz.run.
 local function boot_view(status)
   local run = B.run({ "Lena", "Jonas" })
   run.view = true
@@ -117,7 +117,7 @@ local function boot_view(status)
     box = function() error("must not be called") end,
     box_count = function() error("must not be called") end,
   })
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   return m, app
 end
@@ -160,10 +160,10 @@ end)
 
 t.case("mock: view-mode writes return nil + read only", function()
   local m = boot_view()
-  local a, why = m.fb.run.setState({ x = 1 })
+  local a, why = m.uz.run.setState({ x = 1 })
   t.eq(a, nil); t.eq(why, "read only outside the game")
-  a, why = m.fb.run.event({ type = "x" }); t.eq(a, nil); t.eq(why, "read only outside the game")
-  a, why = m.fb.run.setBoard({ type = "text", text = "x" }); t.eq(a, nil); t.eq(why, "read only outside the game")
+  a, why = m.uz.run.event({ type = "x" }); t.eq(a, nil); t.eq(why, "read only outside the game")
+  a, why = m.uz.run.setBoard({ type = "text", text = "x" }); t.eq(a, nil); t.eq(why, "read only outside the game")
   t.eq(m.run.attempts, 3)
 end)
 
@@ -171,10 +171,10 @@ t.case("tiles: user_id first, name as fallback", function()
   local run = B.run({ "Lena", "Jonas", "Mira" })
   local m = mock.new({ run = { current = run }, game = { code = "000400000011C400", language = "en" } })
   m.set_provider("pokemon.core", { team = function() return {} end, box_count = function() return 1 end, box = function() return {} end })
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   m.advance(600); m.tick(1)
-  m.fire_event("fb", "tiles", {
+  m.fire_event("uz", "tiles", {
     { id = "a", player = "SomeOtherName", user_id = "u-jonas", game = "x" },  -- id wins over a different name
     { id = "b", player = "mira", user_id = "", game = "x" },                  -- unknown id: name
     { id = "c", player = "Jonas", user_id = "u-unknown", game = "x" },        -- id without match: name fallback

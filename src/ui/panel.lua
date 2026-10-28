@@ -1,8 +1,8 @@
 -- In-game panel (design 5b), built for about 300 px: run header, location card, encounter hint,
 -- own team with link partners, graveyard (collapsed), footer. No tabs, no map, no stats, no filters:
--- everything else lives on the run screen (ui.screen, opened with fb.ui.open("screen")).
+-- everything else lives on the run screen (ui.screen, opened with uz.ui.open("screen")).
 -- Pure builder: panel.build(ctx) -> block. ctx.can_open is false when the platform has no
--- fb.ui.open; the panel then says so instead of showing the buttons that open the screen.
+-- uz.ui.open; the panel then says so instead of showing the buttons that open the screen.
 local common = require("ui.common")
 local corr_ui = require("ui.corrections")
 local oras = require("data.oras")

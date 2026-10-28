@@ -1,4 +1,4 @@
--- Run board (design 5gh): compact read-only tree for fb.run.setBoard.
+-- Run board (design 5gh): compact read-only tree for uz.run.setBoard.
 local common = require("ui.common")
 
 local M = {}

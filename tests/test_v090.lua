@@ -1,7 +1,7 @@
 -- v0.9.0: recap manifest block and the automatic badge event. Synthetic data only.
 local t = require("t")
 local B = require("build")
-local mock = require("fb_mock")
+local mock = require("uz_mock")
 local controller = require("app.controller")
 local json = require("json")
 local events = require("model.events")
@@ -21,7 +21,7 @@ local function boot(run_events)
     badges = function() return world.badges end,
   })
   for _, ev in ipairs(run_events or {}) do m.run.add_event("u-lena", ev) end
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   local env = { m = m, world = world, app = app }
   function env.poll() m.advance(6000); m.tick(1) end
@@ -37,7 +37,7 @@ end
 
 t.case("manifest: recap block maps catch, death, badge, correction", function()
   local m = json.decode(read("plugin/manifest.json"))
-  t.eq(m.version, "0.9.0")
+  t.eq(m.version, "0.9.1")
   t.eq(m.recap, {
     { type = "soullink.catch", glyph = "catch" },
     { type = "soullink.death", glyph = "lost" },
@@ -81,7 +81,7 @@ t.case("badge event: badges owned at the first snapshot are baseline", function(
     box = function() return {} end,
     badges = function() return { count = 5, flags = {} } end,
   })
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   m.advance(6000); m.tick(1)
   t.eq(#badge_events(m), 0)
@@ -116,7 +116,7 @@ t.case("demo tag: shown in the panel header only when the core reports demo", fu
       team = function() return { B.rec({ p = 0xB1, sp = 900, hp = 30 }) } end,
       box_count = function() return 1 end, box = function() return {} end,
     })
-    local app = controller.new(m.fb)
+    local app = controller.new(m.uz)
     app:start()
     m.advance(600); m.tick(1)
     return m

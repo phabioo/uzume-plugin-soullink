@@ -1,5 +1,5 @@
 -- Detection: diff(previous own state, core snapshot, cfg) -> new own state + facts.
--- Pure; never touches fb. Everything the core cannot report (place, battle, hp, encounters)
+-- Pure; never touches uz. Everything the core cannot report (place, battle, hp, encounters)
 -- degrades to "unknown": nothing is invented, the UI/user supplies it through manual input.
 local util = require("model.util")
 local rules = require("model.rules")

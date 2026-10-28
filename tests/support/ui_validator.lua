@@ -1,4 +1,4 @@
--- Small validator for fb.ui trees against the documented block catalog (plugin-api.md "Blocks").
+-- Small validator for uz.ui trees against the documented block catalog (plugin-api.md "Blocks").
 -- validate(tree) -> true | nil, "path: message"
 local V = {}
 

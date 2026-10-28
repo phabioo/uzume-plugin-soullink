@@ -1,7 +1,7 @@
 -- Manual corrections: run events of type "soullink.correction" with source "manual".
 -- Corrections are applied by model/view.lua in seq order on top of the own states; they never
 -- rewrite the own state. Builders return a spec { type, source = "manual", payload }; the caller
--- adds `text` and posts it with fb.run.event.
+-- adds `text` and posts it with uz.run.event.
 --
 -- payload.user is the player the correction is about (the author is the event's user_id).
 local util = require("model.util")

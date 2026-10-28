@@ -3,7 +3,7 @@
 -- Synthetic data only.
 local t = require("t")
 local B = require("build")
-local mock = require("fb_mock")
+local mock = require("uz_mock")
 local fake_core = require("fake_core")
 local ui_validator = require("ui_validator")
 local controller = require("app.controller")
@@ -20,7 +20,7 @@ local function boot(o)
   local core = fake_core.new(o.world)
   if o.setup then o.setup(core) end
   m.set_provider("pokemon.core", core.provider)
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   local env = { m = m, core = core, world = core.world, app = app, run = run }
   function env.step(ms) m.advance(ms or 600); m.tick(1) end
@@ -114,7 +114,7 @@ t.case("places: name falls back to the stored name, then to Place #id", function
   e.step()
   t.eq(e.app.tr("area", { n = 12 }), "Place #12")
   local de = mock.new({ run = { current = B.run({ "Lena", "Jonas" }) }, language = "de" })
-  t.eq(de.fb.i18n.t("area", { n = 12 }), "Ort #12")
+  t.eq(de.uz.i18n.t("area", { n = 12 }), "Ort #12")
 end)
 
 t.case("places: at most 100 options, the selected place and places in use stay", function()

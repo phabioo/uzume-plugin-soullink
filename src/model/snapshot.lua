@@ -68,9 +68,9 @@ function P.collect(call, opts)
   return snap, issues
 end
 
---- Snapshot from the live core: fb.call("pokemon.core", fn, ...).
-function P.from_core(fb, opts)
-  return P.collect(function(fn, ...) return fb.call(P.INTERFACE, fn, ...) end, opts)
+--- Snapshot from the live core: uz.call("pokemon.core", fn, ...).
+function P.from_core(uz, opts)
+  return P.collect(function(fn, ...) return uz.call(P.INTERFACE, fn, ...) end, opts)
 end
 
 return P

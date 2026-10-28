@@ -40,7 +40,7 @@ function R.joined_count(run)
   return n
 end
 
---- Parse the rules of a run (`fb.run.current()` result, may be nil).
+--- Parse the rules of a run (`uz.run.current()` result, may be nil).
 --- Returns cfg = { mode = "nuzlocke"|"soullink", mode_set = bool, rules = {<flag> = bool} }.
 --- Unknown keys are ignored, wrong types fall back to the defaults. Without a valid mode:
 --- "soullink" with two or more joined participants, otherwise "nuzlocke".

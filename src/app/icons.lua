@@ -14,8 +14,8 @@ I.RETRY_MAX_MS = 30000
 I.INFO_MS = 10000     -- re-check of info().features.icons while it is false
 I.MAX_BAD = 5         -- consecutive failures without any success before icons are switched off
 
-function I.new(fb)
-  return setmetatable({ fb = fb, entries = {}, queue = {}, bad = 0, ok_once = false, disabled = false,
+function I.new(uz)
+  return setmetatable({ uz = uz, entries = {}, queue = {}, bad = 0, ok_once = false, disabled = false,
                         feature_ok = false, next_info = 0, errors = {},
                         now = 0, rev = nil, rev_done = false, next_rev = 0 }, I)
 end
@@ -26,7 +26,7 @@ end
 
 --- info() of the core; remembers icon_rev on the first answer. Returns the info table or nil.
 function I:info()
-  local ok, info = pcall(self.fb.call, I.CORE, "info")
+  local ok, info = pcall(self.uz.call, I.CORE, "info")
   if ok and type(info) == "table" then
     if not self.rev_done then
       self.rev_done = true
@@ -58,7 +58,7 @@ function I:src(species, form)
   local e = self.entries[k]
   if not e then
     local name = I.name(sp, fm, self.rev)
-    local okc, have = pcall(self.fb.cache.exists, name)
+    local okc, have = pcall(self.uz.cache.exists, name)
     if okc and have then
       e = { st = "have", name = name }
     else
@@ -76,7 +76,7 @@ function I:fail(e, why)
   self.bad = self.bad + 1
   if self.bad >= I.MAX_BAD and not self.ok_once then
     self.disabled = true
-    self.fb.log.info("icons: pokemon-core provides none (" .. tostring(why) .. "), not asked again")
+    self.uz.log.info("icons: pokemon-core provides none (" .. tostring(why) .. "), not asked again")
   end
 end
 
@@ -103,11 +103,11 @@ function I:pump(now)
     if not k then break end
     local e = self.entries[k]
     if e and e.st == "queued" then
-      local ok, png, why = pcall(self.fb.call, I.CORE, "icon", e.sp, e.fm)
+      local ok, png, why = pcall(self.uz.call, I.CORE, "icon", e.sp, e.fm)
       if not ok then
         self:fail(e, "error")
       elseif type(png) == "string" and #png > 0 then
-        local wok = pcall(self.fb.cache.write, e.name, png)
+        local wok = pcall(self.uz.cache.write, e.name, png)
         if wok then
           e.st, changed, self.ok_once, self.bad = "have", true, true, 0
         else

@@ -171,9 +171,9 @@ local function cell_state(w, route)
 end
 
 --- view(run, states, events, cfg) -> table
----   run     fb.run.current() result (participants, settings)
----   states  user_id -> own state of this plugin (fb.run.states())
----   events  run events (fb.run.events), ascending by seq; other event types are ignored
+---   run     uz.run.current() result (participants, settings)
+---   states  user_id -> own state of this plugin (uz.run.states())
+---   events  run events (uz.run.events), ascending by seq; other event types are ignored
 ---   cfg     rules.parse() result; nil = parse from `run`
 --- See docs/architecture.md for the result fields.
 --- Zone table merged over all players: static `data.oras.ZONES` first, then the states' learned
@@ -257,7 +257,7 @@ function V.merge_places(run, states)
   return out
 end
 
---- The run's randomizer fact from `fb.run.current().randomizer` (Uzume 0.21), or nil: absent, malformed or an
+--- The run's randomizer fact from `uz.run.current().randomizer` (Uzume 0.21), or nil: absent, malformed or an
 --- unknown mode. Only mode, preset id and label are kept; seeds and settings are never exposed or shown.
 local RANDOMIZER_MODES = { each = true, same = true }
 function V.randomizer(run)

@@ -1,4 +1,4 @@
--- App controller: wires the model to fb (core polling, run state and events, UI slots, actions).
+-- App controller: wires the model to uz (core polling, run state and events, UI slots, actions).
 -- Everything the UI shows comes from view.view(); everything the user changes goes through
 -- detect.set_place / model.corrections and the run (state and events), never into the view directly.
 local util = require("model.util")
@@ -36,15 +36,16 @@ A.CAL_STEPS = { [2] = true, [10] = true, [40] = true }
 A.NAME_BUDGET = 16   -- core name() lookups per poll
 A.CORE = "pokemon.core"
 
-function A.new(fb)
+function A.new(uz, host)
   local self = setmetatable({}, A)
-  self.fb = fb
-  self.tr = function(key, vars) return fb.i18n.t(key, vars) end
+  self.uz = uz
+  self.host = host or "uz"  -- host event source
+  self.tr = function(key, vars) return uz.i18n.t(key, vars) end
   self.ui = {}
   self.events, self.seen = {}, {}
   self.queue = {}          -- death events waiting for the view
   self.tiles, self.tile_slots = {}, {}
-  self.sync = sync.new(fb)
+  self.sync = sync.new(uz)
   self.last_poll, self.last_box, self.last_render, self.last_board = -1e9, -1e9, -1e9, -1e9
   self.dirty = true
   self.errors = {}
@@ -58,7 +59,7 @@ end
 local function warn_once(self, key, ...)
   if not self.errors[key] then
     self.errors[key] = true
-    self.fb.log.warn(...)
+    self.uz.log.warn(...)
   end
 end
 
@@ -80,7 +81,7 @@ function A:game_name(kind, id)
   if kind == "location" and self.areas_info and self.areas_info.names[id] then return self.areas_info.names[id] end
   if self.name_unsupported or self.name_budget <= 0 or self.viewing then return nil end
   self.name_budget = self.name_budget - 1
-  local ok, v, why = pcall(self.fb.call, A.CORE, "name", kind, id)
+  local ok, v, why = pcall(self.uz.call, A.CORE, "name", kind, id)
   if not ok or why == "unsupported" then self.name_unsupported = true; return nil end
   if type(v) == "string" and v ~= "" then
     self.gnames[kind][id] = v
@@ -146,7 +147,7 @@ end
 --- "unsupported" is permanent; nil + "not_ready"/"failed", an empty list or entries without names are asked
 --- again every REASK_MS, a complete list every REFRESH_MS.
 function A:ask_list(fn, field, now)
-  local ok, list, why = pcall(self.fb.call, A.CORE, fn)
+  local ok, list, why = pcall(self.uz.call, A.CORE, fn)
   if not ok or why == "unsupported" then self[fn .. "_unsupported"] = true; return nil end
   if type(list) ~= "table" then self[fn .. "_next"] = now + (self[field] and A.REASK_MS or 2000); return nil end
   self[fn .. "_next"] = now + (final_list(list) and A.REFRESH_MS or A.REASK_MS)
@@ -161,7 +162,7 @@ end
 --- with the areas alone.
 function A:refresh_areas()
   if self.viewing then return end
-  local now = self.fb.clock()
+  local now = self.uz.clock()
   local changed = false
   if not self.areas_unsupported and not (self.areas_next and now < self.areas_next) then
     if self:ask_list("areas", "area_list", now) then changed = true end
@@ -182,10 +183,10 @@ function A:refresh_diag()
   if self.viewing or self.diag_unsupported then return end
   local empty = not (self.areas_info and #self.areas_info.places > 0)
   if not (empty or common.diag_open(self.ui) or self.diag == nil) then return end
-  local now = self.fb.clock()
+  local now = self.uz.clock()
   if self.diag_next and now < self.diag_next then return end
   self.diag_next = now + 5000
-  local ok, v, why = pcall(self.fb.call, A.CORE, "diagnostics")
+  local ok, v, why = pcall(self.uz.call, A.CORE, "diagnostics")
   if not ok or why == "unsupported" then self.diag_unsupported, self.diag = true, nil; return end
   if type(v) ~= "table" then return end
   local d = {}
@@ -206,13 +207,13 @@ function A:refresh_icon_check()
     return
   end
   if self.icheck_done then return end
-  local now = self.fb.clock()
+  local now = self.uz.clock()
   if self.icheck_next and now < self.icheck_next then return end
   local first = self.first_team -- first creature of the team as the core reports it
   local species = first and int(first.species)
   if not species then return end
   local form = int(first.form) or 0
-  local ok, list, why = pcall(self.fb.call, A.CORE, "icon_variants", species, form)
+  local ok, list, why = pcall(self.uz.call, A.CORE, "icon_variants", species, form)
   if not ok or why == "unsupported" then self.variants_unsupported, self.icheck = true, nil; return end
   if list == nil and why == "not_ready" then self.icheck_next = now + 5000; return end
   self.icheck_done = true -- asked once per opening
@@ -222,7 +223,7 @@ function A:refresh_icon_check()
     if #items >= 4 then break end
     if type(v) == "table" and type(v.label) == "string" and v.label:match("^%u$") and type(v.png) == "string" and #v.png > 0 then
       local name = "diag/icon-" .. v.label .. ".png"
-      if pcall(self.fb.cache.write, name, v.png) then
+      if pcall(self.uz.cache.write, name, v.png) then
         items[#items + 1] = { label = v.label, desc = util.clean_text(v.desc, 60) or "", src = "cache:" .. name }
       end
     end
@@ -236,7 +237,7 @@ function A:primary_type(species, form)
   if species == nil or self.types_unsupported then return nil end
   local key = species .. ":" .. tostring(int(form) or 0)
   if self.types[key] ~= nil then return self.types[key] or nil end
-  local ok, v, why = pcall(self.fb.call, A.CORE, "species_info", species, int(form) or 0)
+  local ok, v, why = pcall(self.uz.call, A.CORE, "species_info", species, int(form) or 0)
   if not ok or why == "unsupported" then self.types_unsupported = true; return nil end
   local t = type(v) == "table" and type(v.types) == "table" and int(v.types[1]) or nil
   if t ~= nil then self.types[key] = t end
@@ -273,36 +274,36 @@ end
 -- ---------------------------------------------------------------- start
 
 function A:start()
-  local fb, tr = self.fb, self.tr
-  fb.ui.on_action(function(action, value, slot) self:on_action(action, value, slot) end)
-  if not fb.run then
+  local uz, tr = self.uz, self.tr
+  uz.ui.on_action(function(action, value, slot) self:on_action(action, value, slot) end)
+  if not uz.run then
     self.sync:push("panel", panel.empty(tr))
     self.sync:push("hud", hud.empty(tr))
     self.sync:push("screen", screen.empty(tr))
     return
   end
-  self.run = fb.run.current()
+  self.run = uz.run.current()
   self.me = self.run.me
   self.viewing = self.run.view == true -- run view of the Runs screen: shell context, read only
   -- run view: no game, so no core calls, no tracking, no notices; only the `run` slot shows the run
   if self.viewing then self.sync:push("screen", screen.empty(tr)) end
-  self.icons = icons_mod.new(fb)
-  self.maps = maps_mod.new(fb, not self.viewing)
-  self.st = state.ensure(util.copy(fb.run.state()))
-  self.last_enc = (not self.viewing and fb.run.state()) and util.encode(self.st) or nil
+  self.icons = icons_mod.new(uz)
+  self.maps = maps_mod.new(uz, not self.viewing)
+  self.st = state.ensure(util.copy(uz.run.state()))
+  self.last_enc = (not self.viewing and uz.run.state()) and util.encode(self.st) or nil
   self:load_events()
   self.live = not self.viewing
-  fb.run.on("event", function(ev) self:on_event(ev) end)
-  fb.run.on("state", function() self.dirty = true end)
-  fb.run.on("participants", function() self.dirty = true end)
-  fb.run.on("status", function() self.dirty = true end)
+  uz.run.on("event", function(ev) self:on_event(ev) end)
+  uz.run.on("state", function() self.dirty = true end)
+  uz.run.on("participants", function() self.dirty = true end)
+  uz.run.on("status", function() self.dirty = true end)
   if not self.viewing then
-    fb.events.on("fb", "tiles", function(list) self.tiles = type(list) == "table" and list or {}; self.dirty = true end)
+    uz.events.on(self.host, "tiles", function(list) self.tiles = type(list) == "table" and list or {}; self.dirty = true end)
     if self.maps.api then
-      fb.events.on("fb", "video.captured", function(e) if self.maps:on_captured(e) then self.dirty = true end end)
+      uz.events.on(self.host, "video.captured", function(e) if self.maps:on_captured(e) then self.dirty = true end end)
     end
   end
-  fb.on_tick(function() self:tick() end)
+  uz.on_tick(function() self:tick() end)
   self:poll(true)
   self:render()
 end
@@ -310,7 +311,7 @@ end
 function A:load_events()
   local after = 0
   while true do
-    local page = self.fb.run.events(after, 500)
+    local page = self.uz.run.events(after, 500)
     for _, ev in ipairs(page) do
       if not self.seen[ev.seq] then
         self.seen[ev.seq] = true
@@ -327,7 +328,7 @@ function A:writable() return common.writable(self.run) end
 -- ---------------------------------------------------------------- ticking
 
 function A:tick()
-  local now = self.fb.clock()
+  local now = self.uz.clock()
   if self.writable_cached ~= self:writable() then
     self.writable_cached = self:writable()
     self.dirty = true
@@ -357,12 +358,12 @@ end
 function A:poll(full)
   if not self:writable() then return end
   local cfg = rules.parse(self.run)
-  local snap = snapshot.from_core(self.fb, { skip_boxes = (not full) and self.boxes ~= nil, boxes = self.boxes,
+  local snap = snapshot.from_core(self.uz, { skip_boxes = (not full) and self.boxes ~= nil, boxes = self.boxes,
     unsupported = self.unsupported })
   if snap.boxes then self.boxes = snap.boxes end
   local t1 = type(snap.team) == "table" and snap.team[1] or nil
   if type(t1) == "table" and int(t1.species) then self.first_team = { species = t1.species, form = t1.form } end
-  local game = self.fb.game or {}
+  local game = self.uz.game or {}
   local loc = type(snap.location) == "table" and snap.location or {}
   self.cur_zone, self.cur_loc = int(loc.zone), int(loc.location)
   if self.cur_zone ~= nil or self.cur_loc ~= nil then self.location_ok = true end
@@ -373,7 +374,7 @@ function A:poll(full)
   self:refresh_icon_check()
   -- corrections about this player's routes (doesn't count, missed, added by hand) shape detection too
   local overrides, excluded = corrections.route_overrides(corrections.effective(self.events), self.me, self.st)
-  local st, facts = detect.diff(self.st, snap, cfg, { now = self.fb.clock(), overrides = overrides, excluded = excluded, game = { id = game.code, language = game.language },
+  local st, facts = detect.diff(self.st, snap, cfg, { now = self.uz.clock(), overrides = overrides, excluded = excluded, game = { id = game.code, language = game.language },
     zones = view_mod.merge_zones(self.run, self:states()),
     areas = self.areas_info, areas_unsupported = self.areas_unsupported,
     names = { species = function(id) return self:game_name("species", id) end },
@@ -384,11 +385,11 @@ function A:poll(full)
 end
 
 --- Save snapshot "before Gym N" once when a gym leader battle starts (model.gym decides). Needs the app's
---- fb.save (Uzume 0.20+); on an older app fb.save is nil and nothing happens. The app limits snapshots to one
+--- uz.save (Uzume 0.20+); on an older app uz.save is nil and nothing happens. The app limits snapshots to one
 --- per minute, so a refusal is retried on the next polls of the same battle (gym.MAX_ATTEMPTS).
 function A:gym_snapshot(snap)
   if self.viewing or self.save_missing then return end
-  local save = self.fb.save
+  local save = self.uz.save
   if type(save) ~= "table" or type(save.snapshot) ~= "function" then
     self.save_missing = true
     return
@@ -406,7 +407,7 @@ function A:gym_snapshot(snap)
   local ok, res, why = pcall(save.snapshot, self.tr("snapshot_gym", { n = n }))
   if ok and res == true then
     self.gym_done[n] = true
-    self.fb.log.info("save snapshot before gym " .. n)
+    self.uz.log.info("save snapshot before gym " .. n)
   else
     warn_once(self, "snapshot", "save snapshot refused: " .. tostring(ok and why or res))
   end
@@ -419,7 +420,7 @@ function A:commit(st, facts)
   local enc = util.encode(st)
   if enc ~= self.last_enc then
     if self:writable() then
-      local ok, why = self.fb.run.setState(st)
+      local ok, why = self.uz.run.setState(st)
       if ok then self.last_enc = enc else warn_once(self, "setState", "setState refused: " .. tostring(why)) end
     end
     self.dirty = true
@@ -509,7 +510,7 @@ function A:post_fact(f)
   if not spec or not self:writable() then return end
   if f.kind == "badge" and self:badge_posted(f.index) then return end
   spec.text = self:fact_text(f)
-  local ok, err = pcall(self.fb.run.event, spec)
+  local ok, err = pcall(self.uz.run.event, spec)
   if not ok then warn_once(self, "event", "event refused: " .. tostring(err)) end
   if f.kind == "place" and f.key and not f.manual then self:note_place(f.key) end
 end
@@ -539,7 +540,7 @@ end
 
 function A:notify(n)
   n.title = n.title or self.tr("note_title")
-  local ok, id = pcall(self.fb.ui.notify, n)
+  local ok, id = pcall(self.uz.ui.notify, n)
   if not ok then warn_once(self, "notify", "notify failed: " .. tostring(id)) end
   return ok and id or nil
 end
@@ -576,7 +577,7 @@ function A:process_queue(view)
           { label = self.tr("open_run"), action = "open_run" },
           { label = self.tr("undo_death"), action = "undo_open", value = g.route },
         } })
-        self.hud_until = self.fb.clock() + A.HUD_MS
+        self.hud_until = self.uz.clock() + A.HUD_MS
         self.hud_text = self.tr("hud_death", { n = g.number or 0, mon = common.mon_name(mon), count = partners })
       end
       handled = true
@@ -595,7 +596,7 @@ end
 -- ---------------------------------------------------------------- rendering
 
 function A:states()
-  local states = self.fb.run.states()
+  local states = self.uz.run.states()
   if not self.viewing and self.me and states[self.me] == nil and self.st then states[self.me] = self.st end
   return states
 end
@@ -603,7 +604,7 @@ end
 --- True when pokemon.core serves demo data (info().demo); asked until the core answers, then remembered.
 function A:core_demo()
   if self.demo_known then return self.demo_flag end
-  local ok, info = pcall(self.fb.call, "pokemon.core", "info")
+  local ok, info = pcall(self.uz.call, "pokemon.core", "info")
   if ok and type(info) == "table" then
     self.demo_known, self.demo_flag = true, info.demo == true
     return self.demo_flag
@@ -615,7 +616,7 @@ function A:ctx(view)
   return { demo = self:core_demo(), view = view, run = self.run, me = self.me, ui = self.ui, tr = self.tr, readonly = not self:writable(),
            events = self.events, hud_death = self.hud_until and self.hud_text or nil,
            map = self.maps and self.maps:view() or nil, diag = self.diag, icheck = self.icheck,
-           can_open = type(self.fb.ui.open) == "function", location_ok = self.location_ok == true,
+           can_open = type(self.uz.ui.open) == "function", location_ok = self.location_ok == true,
            badges_manual = not self.badges_seen,
            area_name = function(id) return self:area_name(id) end,
            event_text = function(ev) return self:event_text(ev) end,
@@ -623,11 +624,11 @@ function A:ctx(view)
 end
 
 function A:render()
-  local fb = self.fb
+  local uz = self.uz
   self.dirty = false
-  local now = fb.clock()
+  local now = uz.clock()
   self.last_render = now
-  self.run = fb.run.current()
+  self.run = uz.run.current()
   local cfg = rules.parse(self.run)
   local view = view_mod.view(self.run, self:states(), self.events, cfg)
   self.view = view
@@ -662,7 +663,7 @@ function A:render()
     elseif now - self.last_board >= A.BOARD_MS then
       self.board_due = false
       self.last_board = now
-      if fb.run.setBoard(tree) then self.last_board_enc = enc end
+      if uz.run.setBoard(tree) then self.last_board_enc = enc end
     else
       self.board_due = true
     end
@@ -690,7 +691,7 @@ function A:post_correction(spec)
   local ok_valid = corrections.validate_spec(spec)
   if not ok_valid then return false end
   spec.text = self:correction_text(spec)
-  local ok, id = pcall(self.fb.run.event, spec)
+  local ok, id = pcall(self.uz.run.event, spec)
   if not ok or id == nil then return false end
   self.dirty = true
   return true
@@ -772,7 +773,7 @@ function A:map_action(action, value)
   elseif action == "map_src:screen" or action == "map_src:files" then
     self.ui.map_src = action:sub(9) -- chips carry the value in the action name
   elseif action == "map_prev" or action == "map_next" then
-    m:files_nav(action == "map_next" and 1 or -1, self.fb.clock())
+    m:files_nav(action == "map_next" and 1 or -1, self.uz.clock())
   elseif action == "map_use" then
     if m:files_use() then
       self.ui.calib = nil
@@ -821,11 +822,11 @@ end
 
 -- ---------------------------------------------------------------- actions
 
---- Open the run screen (screen slot) over the game: fb.ui.open("screen"), only when the platform has it.
+--- Open the run screen (screen slot) over the game: uz.ui.open("screen"), only when the platform has it.
 --- Without it the panel says so (ctx.can_open).
 function A:open_screen()
-  if self.viewing or type(self.fb.ui.open) ~= "function" then return false end
-  local ok, err = pcall(self.fb.ui.open, "screen")
+  if self.viewing or type(self.uz.ui.open) ~= "function" then return false end
+  local ok, err = pcall(self.uz.ui.open, "screen")
   if not ok then warn_once(self, "open", "ui.open failed: " .. tostring(err)) end
   return ok
 end

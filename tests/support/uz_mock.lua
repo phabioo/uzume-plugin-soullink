@@ -1,4 +1,4 @@
--- Fake `fb` for tests. See fb_mock.new.
+-- Fake `uz` for tests. See uz_mock.new.
 local M = {}
 
 -- Minimal reader for flat JSON objects with string values.
@@ -70,10 +70,10 @@ function M.new(opts)
   local mock = { logs = {}, events = {}, provided = {}, watches = {}, dev_watches = {}, cache_files = {} }
   local regions = opts.memory or {}
   mock.regions = regions
-  local fb = { api = 1, plugin = { id = "uzume.soullink", version = "0.9.0" } }
-  fb.game = opts.game or {}
-  if opts.language and not fb.game.language then fb.game.language = opts.language end
-  mock.fb = fb
+  local uz = { api = 1, plugin = { id = "uzume.soullink", version = "0.9.1" } }
+  uz.game = opts.game or {}
+  if opts.language and not uz.game.language then uz.game.language = opts.language end
+  mock.uz = uz
 
   local function read(addr, len)
     if type(addr) ~= "number" or len < 0 then return nil end
@@ -93,7 +93,7 @@ function M.new(opts)
     end
   end
 
-  fb.memory = {
+  uz.memory = {
     watch = function(key, addr, len) mock.watches[key] = { addr = addr, len = len } end,
     unwatch = function(key) mock.watches[key] = nil end,
     u8 = reader("<I1", 1), u16 = reader("<I2", 2), u32 = reader("<I4", 4), u64 = reader("<i8", 8),
@@ -103,7 +103,7 @@ function M.new(opts)
   }
 
   local romfs = opts.romfs or {}
-  fb.rom = {
+  uz.rom = {
     size = function() return opts.rom and #opts.rom or nil end,
     read = function(offset, len)
       if not opts.rom or offset >= #opts.rom then return nil end
@@ -131,11 +131,11 @@ function M.new(opts)
     end,
   }
 
-  fb.codec = opts.codec or {}
+  uz.codec = opts.codec or {}
 
-  fb.log = {}
+  uz.log = {}
   for _, level in ipairs({ "debug", "info", "warn", "error" }) do
-    fb.log[level] = function(...)
+    uz.log[level] = function(...)
       local parts = table.pack(...)
       for i = 1, parts.n do parts[i] = tostring(parts[i]) end
       mock.logs[#mock.logs + 1] = { level = level, text = table.concat(parts, "\t", 1, parts.n) }
@@ -144,13 +144,20 @@ function M.new(opts)
 
   local now = 1000
   local handlers = {}
-  --- mock.fire_event(plugin_id, name, value): deliver an event to subscribers (host events: "fb").
+  --- mock.fire_event(plugin_id, name, value): deliver an event to subscribers (host events: "uz"; "fb" on Uzume < 0.22).
   function mock.fire_event(plugin_id, name, value)
     for _, h in ipairs(handlers) do
       if (h[1] == "*" or h[1] == plugin_id) and h[2] == name then h[3](deep_copy(value), plugin_id, name) end
     end
   end
-  fb.events = {
+  --- mock.subscribed(plugin_id, name): true when a handler for that host source and event exists.
+  function mock.subscribed(plugin_id, name)
+    for _, h in ipairs(handlers) do
+      if h[1] == plugin_id and h[2] == name then return true end
+    end
+    return false
+  end
+  uz.events = {
     emit = function(name, value)
       check_value(value, 1)
       mock.events[#mock.events + 1] = { name = name, value = deep_copy(value) }
@@ -158,13 +165,13 @@ function M.new(opts)
     on = function(plugin_id, name, fn) handlers[#handlers + 1] = { plugin_id, name, fn } end,
   }
 
-  fb.provide = function(name, tbl)
+  uz.provide = function(name, tbl)
     assert(type(name) == "string" and type(tbl) == "table", "bad provide")
     mock.provided[name] = tbl
   end
 
   local tick_fn
-  fb.on_tick = function(fn) tick_fn = fn end
+  uz.on_tick = function(fn) tick_fn = fn end
   mock.frame = 0
   function mock.tick(n)
     for _ = 1, n or 1 do
@@ -184,7 +191,7 @@ function M.new(opts)
       for k, v in pairs(M.read_json_flat(s)) do strings[k] = v end
     end
   end
-  fb.i18n = {
+  uz.i18n = {
     t = function(key, vars)
       local s = strings[key] or key
       return (s:gsub("{([%w_]+)}", function(k)
@@ -193,11 +200,11 @@ function M.new(opts)
     end,
   }
 
-  -- fb.call: pluggable fake `pokemon.core` (or any other) provider.
+  -- uz.call: pluggable fake `pokemon.core` (or any other) provider.
   -- mock.set_provider("pokemon.core", { team = function() ... end, ... })
   mock.providers, mock.calls = {}, {}
   function mock.set_provider(name, tbl) mock.providers[name] = tbl end
-  fb.call = function(name, fn, ...)
+  uz.call = function(name, fn, ...)
     local p = mock.providers[name]
     if not p then error("no plugin provides " .. tostring(name), 2) end
     local f = p[fn]
@@ -210,7 +217,7 @@ function M.new(opts)
     return table.unpack(res, 1, res.n)
   end
 
-  -- fb.run: fake run state, only when opts.run is given:
+  -- uz.run: fake run state, only when opts.run is given:
   --   opts.run = { current = { id, name, status, me, settings, plugins, participants },
   --                states = { [user_id] = state }, events = { ... } }
   if opts.run then
@@ -221,7 +228,7 @@ function M.new(opts)
     for u, st in pairs(opts.run.states or {}) do run.states[u] = deep_copy(st) end
     mock.run = run
     local me = run.current.me
-    local plugin_id = fb.plugin.id
+    local plugin_id = uz.plugin.id
     run.attempts = 0 -- write calls (setState, event, setBoard) made while in view mode
     local function writable()
       if run.current.view then
@@ -250,7 +257,7 @@ function M.new(opts)
       fire("state", user_id, deep_copy(st), plugin_id)
     end
     for _, ev in ipairs(opts.run.events or {}) do run.add_event(ev.user_id, ev) end
-    fb.run = {
+    uz.run = {
       current = function() return deep_copy(run.current) end,
       state = function(user_id) return deep_copy(run.states[user_id or me]) end,
       states = function()
@@ -316,7 +323,7 @@ function M.new(opts)
     }
   end
 
-  -- fb.ui: validates every tree against the documented catalog and records what was shown.
+  -- uz.ui: validates every tree against the documented catalog and records what was shown.
   local ui_validator = require("ui_validator")
   local ui = { trees = {}, sets = {}, patches = {}, notes = {}, titles = {}, dot = nil, badge = nil }
   mock.ui = ui
@@ -327,7 +334,7 @@ function M.new(opts)
     if slot == "panel" or slot == "hud" or slot == "screen" or slot == "detail" or slot == "run" then return true end
     return slot:match("^tile:[%w_.%-]+$") ~= nil
   end
-  fb.ui = {
+  uz.ui = {
     set = function(slot, tree)
       if not declared(slot) then error("slot " .. tostring(slot) .. " not declared in manifest", 2) end
       local ok, err = ui_validator.validate(tree)
@@ -362,19 +369,19 @@ function M.new(opts)
     end,
     on_action = function(fn) ui.handler = fn end,
   }
-  -- fb.ui.open(slot): platform 0.11+ only; opts.no_ui_open leaves it out (older Uzume).
+  -- uz.ui.open(slot): platform 0.11+ only; opts.no_ui_open leaves it out (older Uzume).
   ui.opened = {}
   if not opts.no_ui_open then
-    fb.ui.open = function(slot)
+    uz.ui.open = function(slot)
       if slot ~= "screen" and slot ~= "panel" then error("open: slot " .. tostring(slot) .. " not declared", 2) end
       ui.opened[#ui.opened + 1] = slot
       return true
     end
   end
-  --- mock.action(action, value, slot) calls the registered fb.ui.on_action handler.
+  --- mock.action(action, value, slot) calls the registered uz.ui.on_action handler.
   function mock.action(action, value, slot) return ui.handler(action, deep_copy(value), slot) end
 
-  -- opts.video: fake fb.video (permission video.capture). { screens = list | false (nil), raise = true }
+  -- opts.video: fake uz.video (permission video.capture). { screens = list | false (nil), raise = true }
   -- mock.video.requests lists the capture targets; mock.video_result(ok_or_error, png, w, h) answers the
   -- pending request with a `video.captured` host event (ok_or_error = true or an error code).
   if opts.video then
@@ -382,7 +389,7 @@ function M.new(opts)
     local screens = v.screens
     if screens == nil then screens = { { name = "top", x = 0, y = 0, w = 400, h = 240 }, { name = "bottom", x = 40, y = 240, w = 320, h = 240 } } end
     mock.video = { requests = {}, next_id = 1 }
-    fb.video = {
+    uz.video = {
       screens = function() return screens or nil end,
       capture = function(target)
         if type(target) ~= "string" and type(target) ~= "table" then error("bad capture target", 2) end
@@ -397,16 +404,16 @@ function M.new(opts)
       local req = mock.video.requests[#mock.video.requests]
       local ev = { id = req.id, ok = res == true }
       if res == true then ev.png, ev.w, ev.h = png, w, h else ev.error = res end
-      mock.fire_event("fb", "video.captured", ev)
+      mock.fire_event("uz", "video.captured", ev)
     end
   end
 
-  -- fb.save (Uzume 0.20+, no permission): only when opts.save is given, so the default mock is an older app.
+  -- uz.save (Uzume 0.20+, no permission): only when opts.save is given, so the default mock is an older app.
   --   opts.save = true | { refuse = "rate limited" }; mock.snapshots lists the reasons passed.
   mock.snapshots = {}
   if opts.save then
     local cfg = type(opts.save) == "table" and opts.save or {}
-    fb.save = { snapshot = function(reason)
+    uz.save = { snapshot = function(reason)
       if type(reason) ~= "string" or #reason < 1 or #reason > 80 then error("snapshot: reason must be 1 to 80 characters", 2) end
       mock.snapshots[#mock.snapshots + 1] = reason
       if cfg.refuse then
@@ -418,15 +425,15 @@ function M.new(opts)
     end }
   end
 
-  fb.cache = {
+  uz.cache = {
     write = function(name, data) mock.cache_files[name] = data; return true end,
     read = function(name) return mock.cache_files[name] end,
     exists = function(name) return mock.cache_files[name] ~= nil end,
   }
 
-  fb.clock = function() return now end
+  uz.clock = function() return now end
   function mock.advance(ms) now = now + ms end
-  fb.dev = {
+  uz.dev = {
     watch = function(label, addr, kind) mock.dev_watches[label] = { addr = addr, kind = kind } end,
     unwatch = function(label) mock.dev_watches[label] = nil end,
   }

@@ -1,6 +1,6 @@
 -- Shared helpers for the UI builders. Builders are pure: they take a context
 --   ctx = { view, run, me, ui, tr, readonly, now, events }
--- and return fb.ui block trees. Only tones, sizes and player numbers are used, never colors.
+-- and return uz.ui block trees. Only tones, sizes and player numbers are used, never colors.
 local oras = require("data.oras")
 local util = require("model.util")
 

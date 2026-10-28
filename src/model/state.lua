@@ -1,4 +1,4 @@
--- Own state: one object per participant, written with fb.run.setState (limit 64 KiB).
+-- Own state: one object per participant, written with uz.run.setState (limit 64 KiB).
 local util = require("model.util")
 
 local S = {}

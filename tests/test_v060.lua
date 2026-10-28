@@ -1,7 +1,7 @@
 -- v0.6.0: region map from the game files (candidates of pokemon-core), source choice in the Map tab. Synthetic data only.
 local t = require("t")
 local B = require("build")
-local mock = require("fb_mock")
+local mock = require("uz_mock")
 local fake_core = require("fake_core")
 local ui_validator = require("ui_validator")
 local controller = require("app.controller")
@@ -24,7 +24,7 @@ local function boot(o)
   local m = mock.new({ run = { current = run }, game = { code = GAME, language = "en" }, video = true })
   local core = fake_core.new(o.world)
   m.set_provider("pokemon.core", core.provider)
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   local env = { m = m, core = core, app = app }
   function env.step(ms) m.advance(ms or 600); m.tick(1) end
@@ -105,7 +105,7 @@ t.case("files: Use this map stores it per game, keeps positions rescaled and sur
   -- restart: source and file are restored
   local m2 = mock.new({ run = { current = B.run({ "Lena", "Jonas" }) }, game = { code = GAME, language = "en" }, video = true })
   for k, v in pairs(e.m.cache_files) do m2.cache_files[k] = v end
-  local mp = maps.new(m2.fb, true)
+  local mp = maps.new(m2.uz, true)
   t.eq(mp.state, "ready"); t.eq(mp.source, "files"); t.eq(mp.file_id, "/a/2/4/8#3"); t.eq(mp.w, 512)
   -- taking the map from the screen again switches the source back and rescales to the screen crop
   e.act("map_src:screen")
@@ -184,7 +184,7 @@ t.case("files: without the game picture API the files source is the only one", f
   local run = B.run({ "Lena", "Jonas" })
   local m = mock.new({ run = { current = run }, game = { code = GAME, language = "en" } })
   m.set_provider("pokemon.core", fake_core.new({ maps = world_maps() }).provider)
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   m.advance(600); m.tick(1); m.advance(3100); m.tick(1)
   m.action("tab", 2, "panel"); m.advance(300); m.tick(1)
@@ -199,7 +199,7 @@ t.case("files: the shell run view makes no core calls for maps", function()
   local m = mock.new({ run = { current = run }, game = { code = GAME, language = "en" }, video = true })
   local core = fake_core.new({ maps = world_maps() })
   m.set_provider("pokemon.core", core.provider)
-  local app = controller.new(m.fb)
+  local app = controller.new(m.uz)
   app:start()
   m.advance(4000); m.tick(1); m.advance(4000); m.tick(1)
   t.eq(core.world.calls.map_candidates, nil)
