@@ -55,3 +55,21 @@ t.case("place event: a real change is logged, also back to the earlier place", f
   t.eq(#places(m), 3)
   t.eq(places(m)[3].payload.route, "loc:301")
 end)
+
+t.case("place event: same name but different location ids are both logged, same id is deduped", function()
+  local m, core = boot()
+  for _, l in ipairs(core.world.locations) do
+    if l.id == 400 or l.id == 401 then l.name = "Synthetic Twin" end
+  end
+  core:go(400, "Synthetic Twin", 13)
+  session(m)
+  m.run.states["u-lena"] = nil
+  core:go(401, "Synthetic Twin", 14)
+  session(m)
+  t.eq(#places(m), 2)
+  t.eq(places(m)[1].payload.loc, 400)
+  t.eq(places(m)[2].payload.loc, 401)
+  m.run.states["u-lena"] = nil
+  session(m)
+  t.eq(#places(m), 2)
+end)

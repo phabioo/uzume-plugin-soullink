@@ -505,15 +505,18 @@ function A:badge_posted(index)
   return false
 end
 
---- True when the newest place event of the own participant already records this place (same route key,
---- else same name), so a restart with lost or fresh state does not log the unchanged location again.
+--- True when the newest place event of the own participant already records this place, so a restart
+--- with lost or fresh state does not log the unchanged location again. Same identity as detection
+--- (`place_identity`): route key, else location id, else name (only when neither side has an id).
 function A:place_posted(f)
   for i = #self.events, 1, -1 do
     local ev = self.events[i]
     if ev.type == events.TYPES.place and ev.user_id == self.me and type(ev.payload) == "table" then
       local p = ev.payload
       if f.key ~= nil then return p.route == f.key end
-      return p.route == nil and p.name ~= nil and p.name == f.name
+      if p.route ~= nil then return false end
+      if f.loc ~= nil or p.loc ~= nil then return p.loc == f.loc end
+      return p.name ~= nil and p.name == f.name
     end
   end
   return false
