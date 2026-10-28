@@ -1,7 +1,10 @@
 -- Creature icons from pokemon-core `icon(species, form)` (PNG string, or nil + "not_ready" /
 -- "unsupported"), fetched lazily and cached in the own cache as `icons/<rev>/<species>-<form>.png`, with
 -- `<rev>` = info().icon_rev of the core (a fixed icon decoder gets a new folder); a core without a valid
--- icon_rev keeps `icons/<species>-<form>.png`. The revision is read once, retried while info() fails.
+-- icon_rev keeps `icons/<species>-<form>.png`. The revision is read from info(), retried (every INFO_MS, at
+-- most REV_TRIES answers) while info() fails or answers without a valid icon_rev; files cached under a
+-- rev-less name are fetched again under the revision once it arrives. A "have" entry is only a hint:
+-- its file is re-checked in the cache every RECHECK_MS, so a deleted cache is refilled.
 -- The UI asks for `src(species, form)` while rendering: nil until the file is in the cache, so the
 -- builders fall back to no icon. Failures are remembered, `not_ready` is retried later with a growing delay.
 local I = {}
@@ -12,12 +15,14 @@ I.PER_TICK = 3        -- core calls per tick
 I.RETRY_MS = 5000     -- first retry of "not_ready"; grows by this much per try
 I.RETRY_MAX_MS = 30000
 I.INFO_MS = 10000     -- re-check of info().features.icons while it is false
+I.REV_TRIES = 3       -- info() answers without a valid icon_rev before the rev-less name is final
+I.RECHECK_MS = 5000   -- re-check of the cache file behind a "have" entry
 I.MAX_BAD = 5         -- consecutive failures without any success before icons are switched off
 
 function I.new(uz)
   return setmetatable({ uz = uz, entries = {}, queue = {}, bad = 0, ok_once = false, disabled = false,
                         feature_ok = false, next_info = 0, errors = {},
-                        now = 0, rev = nil, rev_done = false, next_rev = 0 }, I)
+                        now = 0, rev = nil, rev_done = false, next_rev = 0, rev_tries = 0 }, I)
 end
 
 local function valid_rev(r)
@@ -28,9 +33,14 @@ end
 function I:info()
   local ok, info = pcall(self.uz.call, I.CORE, "info")
   if ok and type(info) == "table" then
-    if not self.rev_done then
-      self.rev_done = true
-      if valid_rev(info.icon_rev) then self.rev = info.icon_rev end
+    if not self.rev_done and self.now >= self.next_rev then
+      if valid_rev(info.icon_rev) then
+        self.rev, self.rev_done = info.icon_rev, true
+      else
+        self.rev_tries = self.rev_tries + 1
+        if self.rev_tries >= I.REV_TRIES then self.rev_done = true
+        else self.next_rev = self.now + I.INFO_MS end
+      end
     end
     return info
   end
@@ -56,11 +66,20 @@ function I:src(species, form)
   if not self.rev_done and self.now >= self.next_rev then self:info() end
   local k = sp .. "-" .. fm
   local e = self.entries[k]
+  local name = I.name(sp, fm, self.rev)
+  if e and e.st == "have" and (e.name ~= name or self.now >= e.chk + I.RECHECK_MS) then
+    -- revision arrived late, or time to prove the file is still there
+    local okc, have = pcall(self.uz.cache.exists, e.name)
+    if e.name == name and okc and have then
+      e.chk = self.now
+    else
+      e = nil -- missing or unreadable: fetch again through the normal queue
+    end
+  end
   if not e then
-    local name = I.name(sp, fm, self.rev)
     local okc, have = pcall(self.uz.cache.exists, name)
     if okc and have then
-      e = { st = "have", name = name }
+      e = { st = "have", name = name, chk = self.now }
     else
       e = { st = "queued", name = name, sp = sp, fm = fm, tries = 0 }
       self.queue[#self.queue + 1] = k
@@ -103,13 +122,14 @@ function I:pump(now)
     if not k then break end
     local e = self.entries[k]
     if e and e.st == "queued" then
+      e.name = I.name(e.sp, e.fm, self.rev) -- the revision may have arrived since src()
       local ok, png, why = pcall(self.uz.call, I.CORE, "icon", e.sp, e.fm)
       if not ok then
         self:fail(e, "error")
       elseif type(png) == "string" and #png > 0 then
         local wok = pcall(self.uz.cache.write, e.name, png)
         if wok then
-          e.st, changed, self.ok_once, self.bad = "have", true, true, 0
+          e.st, e.chk, changed, self.ok_once, self.bad = "have", now, true, true, 0
         else
           self:fail(e, "cache")
         end
