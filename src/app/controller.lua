@@ -420,7 +420,8 @@ function A:gym_snapshot(snap, cfg)
   end
   -- A gym battle that ended without the next badge (lost or fled) may be snapshotted again on the next attempt;
   -- a won one moves on to the next gym key anyway. Elite Four and champion stay once per session.
-  if type(snap.battle) ~= "table" or snap.battle.active ~= true then
+  -- Only a known battle state that says "not active" counts; missing battle data (nil, error) keeps the markers.
+  if type(snap.battle) == "table" and snap.battle.active == false then
     for k in pairs(self.gym_done or {}) do
       if k:sub(1, 4) == "gym:" then self.gym_done[k] = nil end
     end

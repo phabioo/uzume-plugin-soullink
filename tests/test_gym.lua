@@ -185,3 +185,15 @@ t.case("run rule gym_snapshots off: no snapshots", function()
   t.eq(e.m.snapshots, {})
   t.eq(require("model.rules").defaults().gym_snapshots, true)
 end)
+
+t.case("battle data dropping out mid-fight does not snapshot the gym again", function()
+  local e = boot{ save = true, badges = 2 }
+  e.world.battle = battle("trainer", { oras.level_cap(2) })
+  e.step(); e.step()
+  t.eq(e.m.snapshots, { "before Gym 3" })
+  e.world.battle = nil -- core answers nothing for a moment
+  e.step(); e.step()
+  e.world.battle = battle("trainer", { oras.level_cap(2) })
+  e.step(); e.step()
+  t.eq(e.m.snapshots, { "before Gym 3" })
+end)
