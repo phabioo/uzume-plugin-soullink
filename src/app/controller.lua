@@ -382,7 +382,7 @@ function A:poll(full)
     types = function(species, form) return self:primary_type(species, form) end,
     partner_types = function(route) return self:partner_types(route) end })
   self:commit(st, facts)
-  self:gym_snapshot(snap)
+  self:gym_snapshot(snap, cfg)
 end
 
 --- pokemon.core balls() (optional, core >= 0.6.4): true when the person owns Poke Balls. Asked only while the
@@ -410,27 +410,37 @@ end
 --- Save snapshot "before Gym N" once when a gym leader battle starts (model.gym decides). Needs the app's
 --- uz.save (Uzume 0.20+); on an older app uz.save is nil and nothing happens. The app limits snapshots to one
 --- per minute, so a refusal is retried on the next polls of the same battle (gym.MAX_ATTEMPTS).
-function A:gym_snapshot(snap)
+function A:gym_snapshot(snap, cfg)
   if self.viewing or self.save_missing then return end
+  if cfg and cfg.rules and cfg.rules.gym_snapshots == false then return end
   local save = self.uz.save
   if type(save) ~= "table" or type(save.snapshot) ~= "function" then
     self.save_missing = true
     return
   end
-  local n = gym.gym_number(snap.battle, self.st and self.st.badges, oras.level_cap)
-  if not n then
+  -- A gym battle that ended without the next badge (lost or fled) may be snapshotted again on the next attempt;
+  -- a won one moves on to the next gym key anyway. Elite Four and champion stay once per session.
+  if type(snap.battle) ~= "table" or snap.battle.active ~= true then
+    for k in pairs(self.gym_done or {}) do
+      if k:sub(1, 4) == "gym:" then self.gym_done[k] = nil end
+    end
+  end
+  local kind, num = gym.stage(snap.battle, self.st and self.st.badges, oras.level_cap, oras.ELITE_CAPS)
+  if not kind then
     self.gym_tries = nil
     return
   end
+  local key = kind .. ":" .. num
   self.gym_done = self.gym_done or {}
-  if self.gym_done[n] then return end
+  if self.gym_done[key] then return end
   self.gym_tries = self.gym_tries or {}
-  if (self.gym_tries[n] or 0) >= gym.MAX_ATTEMPTS then return end
-  self.gym_tries[n] = (self.gym_tries[n] or 0) + 1
-  local ok, res, why = pcall(save.snapshot, self.tr("snapshot_gym", { n = n }))
+  if (self.gym_tries[key] or 0) >= gym.MAX_ATTEMPTS then return end
+  self.gym_tries[key] = (self.gym_tries[key] or 0) + 1
+  local reason = kind == "gym" and self.tr("snapshot_gym", { n = num }) or self.tr("snapshot_" .. kind)
+  local ok, res, why = pcall(save.snapshot, reason)
   if ok and res == true then
-    self.gym_done[n] = true
-    self.uz.log.info("save snapshot before gym " .. n)
+    self.gym_done[key] = true
+    self.uz.log.info("save snapshot before " .. key)
   else
     warn_once(self, "snapshot", "save snapshot refused: " .. tostring(ok and why or res))
   end

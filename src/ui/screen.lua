@@ -19,7 +19,7 @@ function M.has_map(ctx) return ctx ~= nil and ctx.map ~= nil and (ctx.map.state 
 
 local RULE_ORDER = { "first_encounter_only", "dupes_clause", "shiny_clause", "hordes_count",
   "pairs_differ_primary_type", "only_linked_in_team", "nickname_required", "level_caps",
-  "balls_required" }
+  "balls_required", "gym_snapshots" }
 
 local function rules_on(view)
   local n = 0

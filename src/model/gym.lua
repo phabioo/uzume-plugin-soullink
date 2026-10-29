@@ -22,4 +22,21 @@ function M.gym_number(battle, badges, level_cap)
   return nil
 end
 
+--- Fight stage of a boss battle: returns kind ("gym" | "elite4" | "champion") and n (gym number, else 1), or nil.
+--- Gyms as in gym_number; with all eight badges a trainer battle whose strongest foe reaches
+--- `elite_caps.champion` is the champion, else `elite_caps.elite4` the Elite Four (caps: data/oras.lua, unchecked).
+function M.stage(battle, badges, level_cap, elite_caps)
+  local n = M.gym_number(battle, badges, level_cap)
+  if n then return "gym", n end
+  if badges ~= 8 or type(battle) ~= "table" or battle.active ~= true or battle.kind ~= "trainer" then return nil end
+  if type(elite_caps) ~= "table" then return nil end
+  local top = 0
+  for _, foe in ipairs(type(battle.foes) == "table" and battle.foes or {}) do
+    if type(foe) == "table" and math.type(foe.level) == "integer" and foe.level > top then top = foe.level end
+  end
+  if math.type(elite_caps.champion) == "integer" and top >= elite_caps.champion then return "champion", 1 end
+  if math.type(elite_caps.elite4) == "integer" and top >= elite_caps.elite4 then return "elite4", 1 end
+  return nil
+end
+
 return M

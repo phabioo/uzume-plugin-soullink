@@ -209,7 +209,7 @@ t.case("screen: frame, tabs, corrections and rules live here", function()
   t.ok(ui_validator.find(s, "head-summary") and not ui_validator.find(s, "head-stats"))
   t.eq(ui_validator.find(s, "rules-list"), nil)
   e.act("rules_toggle")
-  t.eq(#ui_validator.find(e.m.ui.trees.screen, "rules-list").rows, 10)
+  t.eq(#ui_validator.find(e.m.ui.trees.screen, "rules-list").rows, 11)
   e.act("tab", 2)
   t.ok(ui_validator.find(e.m.ui.trees.screen, "tabs").selected == 2)
   -- Team & box carries the per-mon corrections

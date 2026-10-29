@@ -30,7 +30,7 @@ end)
 local function boot(opts)
   opts = opts or {}
   local run = B.run({ "Lena", "Jonas" })
-  run.settings = {}
+  run.settings = opts.settings or {}
   local m = mock.new({ run = { current = run }, game = { code = "000400000011C400", language = "en" }, save = opts.save })
   local world = { team = { B.rec({ p = 0xB1, sp = 900, hp = 30 }) }, box = {}, battle = { active = false },
     badges = { count = opts.badges or 0 } }
@@ -58,12 +58,12 @@ t.case("one snapshot per gym, labelled with the gym number", function()
   e.step()
   e.world.battle = battle("trainer", { oras.level_cap(2) })
   e.step()
-  t.eq(#e.m.snapshots, 1, "the same gym is not saved twice in a session")
+  t.eq(#e.m.snapshots, 2, "a repeated attempt after the battle ended is saved again, but only once per attempt")
   e.world.badges = { count = 3 }
   e.step(); e.step()
   e.world.battle = battle("trainer", { oras.level_cap(3) })
   e.step()
-  t.eq(e.m.snapshots, { "before Gym 3", "before Gym 4" })
+  t.eq(e.m.snapshots, { "before Gym 3", "before Gym 3", "before Gym 4" })
 end)
 
 t.case("wild battles and low-level trainers never snapshot", function()
@@ -127,4 +127,61 @@ t.case("the run view (read only) never snapshots", function()
   app:start()
   m.advance(600); m.tick(3)
   t.eq(m.snapshots, {})
+end)
+
+-- v0.9.5: Elite Four / champion stages, retry after a lost gym fight, run rule.
+t.case("stage: Elite Four and champion with all eight badges", function()
+  local cap, el = oras.level_cap, oras.ELITE_CAPS
+  t.eq({ gym.stage(battle("trainer", { 20, el.elite4 }), 8, cap, el) }, { "elite4", 1 })
+  t.eq({ gym.stage(battle("trainer", { el.champion }), 8, cap, el) }, { "champion", 1 })
+  t.eq({ gym.stage(battle("trainer", { el.elite4 - 1 }), 8, cap, el) }, {})
+  t.eq({ gym.stage(battle("wild", { 99 }), 8, cap, el) }, {})
+  t.eq({ gym.stage(battle("trainer", { 99 }), 7, cap, el) }, { "gym", 8 })
+  t.eq({ gym.stage(battle("trainer", { 99 }), 5, cap, nil) }, { "gym", 6 })
+end)
+
+t.case("snapshot before Elite Four and Champion, once per stage and session", function()
+  local e = boot{ save = true, badges = 8 }
+  e.world.battle = battle("trainer", { oras.ELITE_CAPS.elite4 })
+  e.step(); e.step()
+  e.world.battle = { active = false }
+  e.step()
+  e.world.battle = battle("trainer", { oras.ELITE_CAPS.elite4 })
+  e.step(); e.step()
+  t.eq(e.m.snapshots, { "before Elite Four" })
+  e.world.battle = battle("trainer", { oras.ELITE_CAPS.champion })
+  e.step(); e.step()
+  t.eq(e.m.snapshots, { "before Elite Four", "before Champion" })
+end)
+
+t.case("German Elite Four and champion reasons", function()
+  local run = B.run({ "Lena", "Jonas" })
+  local m = mock.new({ language = "de", run = { current = run }, game = { code = "000400000011C400", language = "de" }, save = true })
+  m.set_provider("pokemon.core", { team = function() return {} end, box_count = function() return 1 end,
+    box = function() return {} end, battle = function() return battle("trainer", { oras.ELITE_CAPS.champion }) end,
+    badges = function() return { count = 8 } end })
+  local app = controller.new(m.uz)
+  app:start()
+  m.advance(600); m.tick(1)
+  t.eq(m.snapshots, { "vor dem Champ" })
+end)
+
+t.case("a lost gym fight is snapshotted again on the next attempt, once per attempt", function()
+  local e = boot{ save = true, badges = 2 }
+  e.world.battle = battle("trainer", { oras.level_cap(2) })
+  e.step(); e.step(); e.step()
+  t.eq(e.m.snapshots, { "before Gym 3" })
+  e.world.battle = { active = false } -- lost, no new badge
+  e.step()
+  e.world.battle = battle("trainer", { oras.level_cap(2) })
+  e.step(); e.step(); e.step()
+  t.eq(e.m.snapshots, { "before Gym 3", "before Gym 3" })
+end)
+
+t.case("run rule gym_snapshots off: no snapshots", function()
+  local e = boot{ save = true, badges = 2, settings = { ["uzume.soullink"] = { rules = { gym_snapshots = false } } } }
+  e.world.battle = battle("trainer", { oras.level_cap(2) })
+  e.step(); e.step(); e.step()
+  t.eq(e.m.snapshots, {})
+  t.eq(require("model.rules").defaults().gym_snapshots, true)
 end)

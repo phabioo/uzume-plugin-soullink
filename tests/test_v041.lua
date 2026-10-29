@@ -390,7 +390,7 @@ t.case("screen: rules are collapsed to a summary, the list opens in a short scro
   t.ok(ui_validator.validate(s))
   t.eq(ui_validator.find(s, "rules-list"), nil)
   t.eq(ui_validator.find(s, "rules-scroll"), nil)
-  t.eq(ui_validator.find(s, "rules-summary").text, "5 of 9 rules on")
+  t.eq(ui_validator.find(s, "rules-summary").text, "6 of 10 rules on")
   t.eq(ui_validator.find(s, "rules-chip").text, "Show rules")
   e.act("rules_toggle", nil, "screen")
   s = e.m.ui.trees.screen
