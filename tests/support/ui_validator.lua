@@ -18,6 +18,7 @@ local function plain(v)
   return true
 end
 local tone = enum("neutral", "info", "ok", "warning", "danger")
+local text40 = str(40)
 local text200 = str(200)
 local text2000 = str(2000)
 local action = function(v) return type(v) == "string" and #v >= 1 and #v <= 64 end
@@ -90,7 +91,7 @@ local SPEC = {
   segmented = { options = list_of(option, 2, 3), selected = function(v) return v ~= nil end, action = action, _req = { "options", "action" } },
   textfield = { action = action, text = text2000, placeholder = text200, error = text200, _req = { "action" } },
   empty = { title = text200, text = text2000, action_label = text200, action = action, tone = tone, _req = { "title" } },
-  location = { title = text200, sub = text200, status = enum("open", "encounter", "caught", "missed", "none"), _req = { "title" } },
+  location = { title = text200, sub = text200, status = enum("open", "encounter", "caught", "missed", "none"), status_label = text40, _req = { "title" } },
   map = { image = text200, image_w = int_in(1, 16384), image_h = int_in(1, 16384), players = plain, routes = plain,
           filter = enum("all", "me", "open"), me = function(v) return v ~= nil end, selected = function(v) return v ~= nil end,
           legend = bool, popover = plain, action = action },

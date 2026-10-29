@@ -75,7 +75,7 @@ local function location(ctx, me)
   end
   local kids = others_on_place(ctx, me)
   return { type = "location", id = "loc", title = common.place_label(me.place, tr, ctx.view), sub = sub,
-    status = common.loc_status(status), children = kids }
+    status = common.loc_status(status), status_label = tr("loc_tag_" .. common.loc_status(status)), children = kids }
 end
 
 --- The core reports a zone (but no location) that no player has mapped to a place yet.
