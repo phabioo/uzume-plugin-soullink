@@ -1,7 +1,7 @@
 {
   "id": "uzume.soullink",
   "name": "SoulLink & Nuzlocke",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "issues_url": "https://github.com/phabioo/uzume-plugin-soullink",
   "api": 1,
   "type": "script",

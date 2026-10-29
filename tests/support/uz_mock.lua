@@ -70,7 +70,7 @@ function M.new(opts)
   local mock = { logs = {}, events = {}, provided = {}, watches = {}, dev_watches = {}, cache_files = {} }
   local regions = opts.memory or {}
   mock.regions = regions
-  local uz = { api = 1, plugin = { id = "uzume.soullink", version = "0.9.3" } }
+  local uz = { api = 1, plugin = { id = "uzume.soullink", version = "0.9.4" } }
   uz.game = opts.game or {}
   if opts.language and not uz.game.language then uz.game.language = opts.language end
   mock.uz = uz
@@ -334,8 +334,15 @@ function M.new(opts)
     if slot == "panel" or slot == "hud" or slot == "screen" or slot == "detail" or slot == "run" then return true end
     return slot:match("^tile:[%w_.%-]+$") ~= nil
   end
+  -- opts.no_status_label simulates an app before Uzume 21: the unknown `status_label` prop raises.
+  local function reject_label(t)
+    if not opts.no_status_label or type(t) ~= "table" then return end
+    if t.status_label ~= nil then error("ui tree: unknown property status_label", 3) end
+    for _, c in ipairs(t.children or {}) do reject_label(c) end
+  end
   uz.ui = {
     set = function(slot, tree)
+      reject_label(tree)
       if not declared(slot) then error("slot " .. tostring(slot) .. " not declared in manifest", 2) end
       local ok, err = ui_validator.validate(tree)
       if not ok then error("ui tree: " .. err, 2) end
@@ -343,6 +350,7 @@ function M.new(opts)
       ui.sets[slot] = (ui.sets[slot] or 0) + 1
     end,
     patch = function(slot, id, props)
+      if opts.no_status_label and props.status_label ~= nil then error("ui patch: unknown property status_label", 2) end
       local tree = ui.trees[slot]
       if not tree then error("no tree in slot " .. tostring(slot), 2) end
       local b = find_block(tree, id)

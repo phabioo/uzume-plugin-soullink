@@ -9,6 +9,18 @@ S.MAX_PATCHES = 12
 
 function S.new(uz) return setmetatable({ uz = uz, last = {}, sets = 0, patches = 0 }, S) end
 
+-- `status_label` on `location` blocks (Uzume 21) is rejected by older apps: the first tree is sent with it; when the
+-- app raises because of that key, it is dropped from this and all later trees and from the remembered trees.
+local function strip_label(b)
+  if type(b) ~= "table" then return end
+  b.status_label = nil
+  for _, c in ipairs(b.children or {}) do strip_label(c) end
+end
+
+local function is_label_error(err, already)
+  return not already and tostring(err):find("status_label", 1, true) ~= nil
+end
+
 local function diff(old, new, patches)
   if old.type ~= new.type or old.id ~= new.id then return false end
   local oc, nc = old.children or {}, new.children or {}
@@ -35,18 +47,35 @@ end
 
 --- Show `tree` in `slot`. Returns "same", "patch" or "set".
 function S:push(slot, tree)
+  if self.no_label then strip_label(tree) end
   local old = self.last[slot]
   if old then
+    if self.no_label then strip_label(old) end
     if util.encode(old) == util.encode(tree) then return "same" end
     local patches = {}
     if diff(old, tree, patches) and #patches <= S.MAX_PATCHES then
-      for _, p in ipairs(patches) do self.uz.ui.patch(slot, p.id, p.props) end
-      self.last[slot] = util.copy(tree)
-      self.patches = self.patches + #patches
-      return "patch"
+      local ok, err = true, nil
+      for _, p in ipairs(patches) do
+        ok, err = pcall(self.uz.ui.patch, slot, p.id, p.props)
+        if not ok then break end
+      end
+      if ok then
+        self.last[slot] = util.copy(tree)
+        self.patches = self.patches + #patches
+        return "patch"
+      end
+      if not is_label_error(err, self.no_label) then error(err, 0) end
+      self.no_label = true
+      strip_label(tree)
     end
   end
-  self.uz.ui.set(slot, tree)
+  local ok, err = pcall(self.uz.ui.set, slot, tree)
+  if not ok then
+    if not is_label_error(err, self.no_label) then error(err, 0) end
+    self.no_label = true
+    strip_label(tree)
+    self.uz.ui.set(slot, tree)
+  end
   self.last[slot] = util.copy(tree)
   self.sets = self.sets + 1
   return "set"
