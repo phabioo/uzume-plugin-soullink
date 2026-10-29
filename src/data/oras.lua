@@ -26,6 +26,11 @@ M.COORDS = {}
 --- VERIFY LOCALLY against the real game before relying on it; hints only, never blocking.
 M.LEVEL_CAPS = { [0] = 15, 19, 24, 29, 31, 33, 42, 43 }
 
+--- Level cap hints for the fights after the eighth badge: the strongest creature of the weakest Elite Four
+--- member (stage "elite4") and of the champion (stage "champion"). Values from the ORAS teams as remembered (Sidney leads at 50, Steven at 57), NOT yet checked on a real
+--- game: VERIFY LOCALLY. Hints only, used by model.gym for the snapshot before these fights.
+M.ELITE_CAPS = { elite4 = 50, champion = 57 }
+
 --- Number of gym badges of the game (the level cap table has one entry per badge).
 M.BADGES = 8
 

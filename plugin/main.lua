@@ -401,7 +401,7 @@ function A:poll(full)
     types = function(species, form) return self:primary_type(species, form) end,
     partner_types = function(route) return self:partner_types(route) end })
   self:commit(st, facts)
-  self:gym_snapshot(snap)
+  self:gym_snapshot(snap, cfg)
 end
 
 --- pokemon.core balls() (optional, core >= 0.6.4): true when the person owns Poke Balls. Asked only while the
@@ -429,27 +429,38 @@ end
 --- Save snapshot "before Gym N" once when a gym leader battle starts (model.gym decides). Needs the app's
 --- uz.save (Uzume 0.20+); on an older app uz.save is nil and nothing happens. The app limits snapshots to one
 --- per minute, so a refusal is retried on the next polls of the same battle (gym.MAX_ATTEMPTS).
-function A:gym_snapshot(snap)
+function A:gym_snapshot(snap, cfg)
   if self.viewing or self.save_missing then return end
+  if cfg and cfg.rules and cfg.rules.gym_snapshots == false then return end
   local save = self.uz.save
   if type(save) ~= "table" or type(save.snapshot) ~= "function" then
     self.save_missing = true
     return
   end
-  local n = gym.gym_number(snap.battle, self.st and self.st.badges, oras.level_cap)
-  if not n then
+  -- A gym battle that ended without the next badge (lost or fled) may be snapshotted again on the next attempt;
+  -- a won one moves on to the next gym key anyway. Elite Four and champion stay once per session.
+  -- Only a known battle state that says "not active" counts; missing battle data (nil, error) keeps the markers.
+  if type(snap.battle) == "table" and snap.battle.active == false then
+    for k in pairs(self.gym_done or {}) do
+      if k:sub(1, 4) == "gym:" then self.gym_done[k] = nil end
+    end
+  end
+  local kind, num = gym.stage(snap.battle, self.st and self.st.badges, oras.level_cap, oras.ELITE_CAPS)
+  if not kind then
     self.gym_tries = nil
     return
   end
+  local key = kind .. ":" .. num
   self.gym_done = self.gym_done or {}
-  if self.gym_done[n] then return end
+  if self.gym_done[key] then return end
   self.gym_tries = self.gym_tries or {}
-  if (self.gym_tries[n] or 0) >= gym.MAX_ATTEMPTS then return end
-  self.gym_tries[n] = (self.gym_tries[n] or 0) + 1
-  local ok, res, why = pcall(save.snapshot, self.tr("snapshot_gym", { n = n }))
+  if (self.gym_tries[key] or 0) >= gym.MAX_ATTEMPTS then return end
+  self.gym_tries[key] = (self.gym_tries[key] or 0) + 1
+  local reason = kind == "gym" and self.tr("snapshot_gym", { n = num }) or self.tr("snapshot_" .. kind)
+  local ok, res, why = pcall(save.snapshot, reason)
   if ok and res == true then
-    self.gym_done[n] = true
-    self.uz.log.info("save snapshot before gym " .. n)
+    self.gym_done[key] = true
+    self.uz.log.info("save snapshot before " .. key)
   else
     warn_once(self, "snapshot", "save snapshot refused: " .. tostring(ok and why or res))
   end
@@ -1685,6 +1696,11 @@ M.COORDS = {}
 --- VERIFY LOCALLY against the real game before relying on it; hints only, never blocking.
 M.LEVEL_CAPS = { [0] = 15, 19, 24, 29, 31, 33, 42, 43 }
 
+--- Level cap hints for the fights after the eighth badge: the strongest creature of the weakest Elite Four
+--- member (stage "elite4") and of the champion (stage "champion"). Values from the ORAS teams as remembered (Sidney leads at 50, Steven at 57), NOT yet checked on a real
+--- game: VERIFY LOCALLY. Hints only, used by model.gym for the snapshot before these fights.
+M.ELITE_CAPS = { elite4 = 50, champion = 57 }
+
 --- Number of gym badges of the game (the level cap table has one entry per badge).
 M.BADGES = 8
 
@@ -2668,6 +2684,23 @@ function M.gym_number(battle, badges, level_cap)
   return nil
 end
 
+--- Fight stage of a boss battle: returns kind ("gym" | "elite4" | "champion") and n (gym number, else 1), or nil.
+--- Gyms as in gym_number; with all eight badges a trainer battle whose strongest foe reaches
+--- `elite_caps.champion` is the champion, else `elite_caps.elite4` the Elite Four (caps: data/oras.lua, unchecked).
+function M.stage(battle, badges, level_cap, elite_caps)
+  local n = M.gym_number(battle, badges, level_cap)
+  if n then return "gym", n end
+  if badges ~= 8 or type(battle) ~= "table" or battle.active ~= true or battle.kind ~= "trainer" then return nil end
+  if type(elite_caps) ~= "table" then return nil end
+  local top = 0
+  for _, foe in ipairs(type(battle.foes) == "table" and battle.foes or {}) do
+    if type(foe) == "table" and math.type(foe.level) == "integer" and foe.level > top then top = foe.level end
+  end
+  if math.type(elite_caps.champion) == "integer" and top >= elite_caps.champion then return "champion", 1 end
+  if math.type(elite_caps.elite4) == "integer" and top >= elite_caps.elite4 then return "elite4", 1 end
+  return nil
+end
+
 return M
 
 end
@@ -2691,13 +2724,14 @@ R.DEFAULTS = {
   nickname_required = true,
   level_caps = true,
   balls_required = true,
+  gym_snapshots = true,
 }
 
 --- Rule keys in a fixed order (for UI lists).
 R.ORDER = {
   "first_encounter_only", "dupes_clause", "shiny_clause", "hordes_count",
   "pairs_differ_primary_type", "only_linked_in_team", "nickname_required", "level_caps",
-  "balls_required",
+  "balls_required", "gym_snapshots",
 }
 
 --- Fresh copy of the default rules.
@@ -4589,7 +4623,7 @@ function M.has_map(ctx) return ctx ~= nil and ctx.map ~= nil and (ctx.map.state 
 
 local RULE_ORDER = { "first_encounter_only", "dupes_clause", "shiny_clause", "hordes_count",
   "pairs_differ_primary_type", "only_linked_in_team", "nickname_required", "level_caps",
-  "balls_required" }
+  "balls_required", "gym_snapshots" }
 
 local function rules_on(view)
   local n = 0

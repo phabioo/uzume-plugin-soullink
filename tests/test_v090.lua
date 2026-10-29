@@ -37,7 +37,7 @@ end
 
 t.case("manifest: recap block maps catch, death, badge, correction", function()
   local m = json.decode(read("plugin/manifest.json"))
-  t.eq(m.version, "0.9.4")
+  t.eq(m.version, "0.9.5")
   t.eq(m.recap, {
     { type = "soullink.catch", glyph = "catch" },
     { type = "soullink.death", glyph = "lost" },
