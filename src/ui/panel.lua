@@ -9,7 +9,7 @@ local oras = require("data.oras")
 
 local M = {}
 
-M.MAX_PARTNERS = 2   -- partner icons per team row
+M.MAX_ROW = 3   -- members side by side in a link card; more use a two-column grid
 M.MAX_GRAVE_ROWS = 10
 
 function M.empty(tr)
@@ -157,55 +157,68 @@ local function reopen_hint(ctx, me)
   return { type = "button", id = "reopen", label = tr("reopen_route"), action = "reopen_open", value = me.place.key, variant = "quiet" }
 end
 
-local function partners(ctx, me, i, m, groups)
+--- One cell of a link card: icon, name (nickname or species), level and the player's name.
+--- Dead mons get a "✕" prefix and a neutral tone. Ids: mc/mi/mn/ml/mp + card index + "-" + cell index.
+local function link_cell(ctx, i, k, mon, pl, idx)
+  local tr = ctx.tr
+  local sfx = i .. "-" .. k
+  local color = common.color(pl, idx)
+  local tone = mon.dead and "neutral" or nil
+  local kids = {}
+  kids[#kids + 1] = common.icon_block(ctx, "mi" .. sfx, mon, color, "s")
+    or { type = "avatar", id = "mi" .. sfx, initial = common.initial(pl.name), color = color, size = "s" }
+  kids[#kids + 1] = { type = "text", id = "mn" .. sfx, text = (mon.dead and "✕ " or "") .. common.mon_name(mon),
+    style = "body", tone = tone }
+  if mon.level then
+    kids[#kids + 1] = { type = "text", id = "ml" .. sfx, text = tr("level_short", { n = mon.level }), style = "meta", tone = tone }
+  end
+  kids[#kids + 1] = { type = "text", id = "mp" .. sfx, text = pl.name or "", style = "meta", tone = tone }
+  return { type = "column", id = "mc" .. sfx, gap = 2, children = kids }
+end
+
+--- Cells of a team mon in player order (me first, then the view order): its own cell plus the linked
+--- partners. A mon without a link group only has its own cell.
+local function link_cells(ctx, me, i, m, groups)
   local g = m.group and groups[m.group]
-  if not g or g.count <= 1 then return nil end
-  local kids, shown, more = {}, 0, 0
-  for j, pm in ipairs(g.members) do
-    if pm.owner ~= me.id then
-      if shown < M.MAX_PARTNERS then
-        shown = shown + 1
-        local idx, pl = common.index_of(ctx.view, pm.owner)
-        local color = common.color(pl or {}, idx)
-        local icon = common.icon_block(ctx, "m-p" .. i .. "-" .. j, pm, color, "s")
-        kids[#kids + 1] = icon or { type = "avatar", id = "m-p" .. i .. "-" .. j,
-          initial = common.initial(pl and pl.name), color = color, size = "s" }
-      else
-        more = more + 1
+  local cells = {}
+  local function add(pl, idx, mon)
+    cells[#cells + 1] = link_cell(ctx, i, #cells + 1, mon, pl, idx)
+  end
+  local my_idx = common.index_of(ctx.view, me.id)
+  add(me, my_idx, m)
+  if g and g.count > 1 then
+    for idx, pl in ipairs(ctx.view.players) do
+      if pl.id ~= me.id then
+        for _, pm in ipairs(g.members) do
+          if pm.owner == pl.id then
+            local full = pl.mons and pl.mons[pm.id] or {}
+            add(pl, idx, { species = pm.species, species_name = pm.species_name, form = full.form,
+              nickname = pm.nickname, level = full.level, dead = pm.dead })
+            break
+          end
+        end
       end
     end
   end
-  if more > 0 then
-    kids[#kids + 1] = { type = "text", id = "m-pm" .. i, text = "+" .. more, style = "meta" }
-  end
-  local row = { type = "row", id = "m-pr" .. i, gap = 4, align = "center", children = kids }
-  return { type = "column", id = "m-pc" .. i, gap = 2, children = {
-    { type = "text", id = "m-pl" .. i, text = ctx.tr("linked_with"), style = "eyebrow" }, row } }
+  return cells
 end
 
 local function team(ctx, me)
   local tr = ctx.tr
   local groups = common.groups(ctx.view)
-  local owner = common.color(me, common.index_of(ctx.view, me.id))
   local kids = {}
   for i, m in ipairs(me.team) do
-    local title = (m.dead and "✕ " or "") .. common.mon_name(m) .. (m.level and (" · " .. tr("level_short", { n = m.level })) or "")
-    local texts = { { type = "text", id = "m-t" .. i, text = title, style = "body", tone = m.dead and "neutral" or nil } }
-    local has_nick = type(m.nickname) == "string" and m.nickname ~= ""
-    if has_nick then
-      texts[#texts + 1] = { type = "text", id = "m-s" .. i, text = common.species_label(m), style = "meta" }
+    local g = m.group and groups[m.group]
+    local cells = link_cells(ctx, me, i, m, groups)
+    local body
+    if #cells <= M.MAX_ROW then
+      body = { type = "row", id = "mr" .. i, gap = 8, align = "start", children = cells }
+    else
+      body = { type = "grid", id = "mr" .. i, gap = 8, columns = 2, children = cells }
     end
-    local head = { type = "column", id = "m-c" .. i, gap = 0, children = texts }
-    local icon = common.icon_block(ctx, "m-i" .. i, m, owner, "s")
-    if icon then head = { type = "row", id = "m-h" .. i, gap = 8, align = "center", children = { icon, head } } end
-    local c = { head }
-    local ratio = (not m.dead) and common.hp_ratio(m)
-    if ratio then
-      c[#c + 1] = { type = "bar", id = "m-hp" .. i, value = ratio, label = tr("hp_label", { hp = m.hp, max = m.mhp }) }
-    end
-    local pr = partners(ctx, me, i, m, groups)
-    if pr then c[#c + 1] = pr end
-    kids[#kids + 1] = { type = "column", id = "mon" .. i, gap = 4, children = c }
+    local route = m.route or (g and g.route)
+    kids[#kids + 1] = { type = "card", id = "mon" .. i, eyebrow = route and common.route_label(ctx, route) or nil,
+      children = { body } }
   end
   if #kids == 0 then kids[1] = { type = "text", id = "team-empty", text = tr("team_empty"), style = "meta" } end
   return { type = "section", id = "team", title = tr("team_title", { n = #me.team }), children = kids }
