@@ -387,7 +387,7 @@ t.case("i18n: every static key used in the sources exists in en and de", functio
   end
 end)
 
-t.case("panel team rows: hp bar, partners; mark dead lives on the screen", function()
+t.case("panel team cards: partners, no hp bar; mark dead lives on the screen", function()
   local e = boot()
   e.act("place_select", "route-101")
   e.world.team[#e.world.team + 1] = B.rec({ p = 0x77, sp = 12, nick = "Zippy", hp = 15, lv = 9 })
@@ -398,9 +398,10 @@ t.case("panel team rows: hp bar, partners; mark dead lives on the screen", funct
   local panel = e.m.ui.trees.panel
   local mon = ui_validator.find(panel, "mon1")
   t.ok(mon, "team row")
-  t.eq(ui_validator.find(panel, "m-hp1").value, 0.5)
-  t.ok(ui_validator.find(panel, "m-p1-2") or ui_validator.find(panel, "m-p1-1"), "partner avatar")
-  t.ok(find_text(panel, "Zippy · Lv 9"))
+  t.eq(ui_validator.find(panel, "m-hp1"), nil, "no own hp bar in the panel")
+  t.ok(ui_validator.find(panel, "mn1-2"), "partner cell")
+  t.ok(find_text(panel, "Zippy"))
+  t.ok(find_text(panel, "Lv 9"))
   t.eq(ui_validator.find(panel, "m-dead1"), nil, "no inline 5f actions in the panel")
   -- the screen's Team & box tab has the button (with the danger confirm)
   e.act("tab", 3)
@@ -419,7 +420,7 @@ t.case("package builds and verifies", function()
   local ok = os.execute("python3 -c 'import sys' >/dev/null 2>&1")
   if not ok then return t.skip("python3 not available") end
   local dir = os.tmpname() .. ".d"
-  local ok2 = os.execute("python3 -I tools/package.py --out " .. dir .. " --tag v0.9.6 >/dev/null && python3 -I tools/package.py --verify " .. dir .. "/uzume.soullink-0.9.6.uzplugin >/dev/null")
+  local ok2 = os.execute("python3 -I tools/package.py --out " .. dir .. " --tag v0.9.7 >/dev/null && python3 -I tools/package.py --verify " .. dir .. "/uzume.soullink-0.9.7.uzplugin >/dev/null")
   t.ok(ok2, "package.py failed")
   local bad = os.execute("python3 -I tools/package.py --out " .. dir .. " --tag v9.9.9 >/dev/null 2>&1")
   t.ok(not bad, "tag/version mismatch must fail")

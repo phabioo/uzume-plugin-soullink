@@ -48,7 +48,7 @@ t.case("icons: lazy fetch, cache, image blocks, no spam on failure", function()
   })
   e.step(); e.step(); e.step()
   t.ok(e.m.cache_files["icons/900-0.png"], "written to the own cache")
-  local img = ui_validator.find(e.m.ui.trees.panel, "m-i1")
+  local img = ui_validator.find(e.m.ui.trees.panel, "mi1-1")
   t.eq(img.src, "cache:icons/900-0.png")
   local n = #seen
   for _ = 1, 10 do e.step() end
@@ -61,15 +61,15 @@ t.case("icons: lazy fetch, cache, image blocks, no spam on failure", function()
   t.eq(tries, 1, "waits before the retry")
   for _ = 1, 30 do e2.step(6000) end
   t.eq(tries, 3)
-  t.ok(ui_validator.find(e2.m.ui.trees.panel, "m-i1"))
+  t.ok(ui_validator.find(e2.m.ui.trees.panel, "mi1-1"))
 
   -- unsupported: remembered, bounded number of calls
   local calls = 0
   local e3 = boot({ icon = function() calls = calls + 1; return nil, "unsupported" end })
   for _ = 1, 40 do e3.step(2000) end
   t.ok(calls <= 2, "one call per creature at most: " .. calls)
-  t.ok(not ui_validator.find(e3.m.ui.trees.panel, "m-i1"))
-  t.ok(ui_validator.find(e3.m.ui.trees.panel, "m-t1"), "text fallback")
+  t.eq(ui_validator.find(e3.m.ui.trees.panel, "mi1-1").type, "avatar", "avatar instead of the icon")
+  t.ok(ui_validator.find(e3.m.ui.trees.panel, "mn1-1"), "text fallback")
 
   -- features.icons = false: no icon calls at all
   local c4 = 0

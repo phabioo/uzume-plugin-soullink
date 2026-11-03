@@ -99,7 +99,7 @@ t.case("panel: no tabs, map, stats grid or filter chips; small and short", funct
   t.eq(ui_validator.find(panel, "loc").title, "Synthetic Area Three")
 end)
 
-t.case("panel: at most two partner icons per row", function()
+t.case("panel: four players: all partners in a two-column grid", function()
   local run = B.run({ "Lena", "Jonas", "Sam", "Max" })
   local m = mock.new({ run = { current = run }, game = { code = "x", language = "en" } })
   local core = fake_core.new()
@@ -125,12 +125,11 @@ t.case("panel: at most two partner icons per row", function()
   end
   step(600)
   local panel = m.ui.trees.panel
-  local row = ui_validator.find(panel, "m-pr1")
-  t.ok(row, "partner row")
-  local avatars = #ui_validator.all(row, "avatar") + #ui_validator.all(row, "image")
-  t.eq(avatars, 2)
-  t.ok(ui_validator.find(panel, "m-pm1"), "+1 for the rest")
-  t.eq(ui_validator.find(panel, "m-pm1").text, "+1")
+  local grid = ui_validator.find(panel, "mr1")
+  t.ok(grid, "cells of the link card")
+  t.eq(grid.type, "grid")
+  t.eq(#grid.children, 4, "me plus three partners")
+  t.eq(ui_validator.find(panel, "m-pm1"), nil, "no +N counter any more")
 end)
 
 t.case("panel: place picker only without a location, collapsed behind Set place", function()
@@ -541,7 +540,7 @@ t.case("every part may be unsupported or not ready: no crash, manual input remai
   e.full()
   t.eq(e.state().mons["00000084"].route, "starter")
   t.eq(e.app.view.players[1].mons["00000084"].species_name, nil)
-  t.ok(texts(e.m.ui.trees.panel):find("#20", 1, true), "species id fallback without names")
+  t.ok(texts(e.m.ui.trees.panel):find("Hand", 1, true), "nickname shown; species id fallback is in test_v097")
   local e2 = boot({ setup = function(c)
     for _, fn in ipairs({ "location", "battle", "encounters", "badges", "areas", "name" }) do c:off(fn, "not_ready") end
   end })
