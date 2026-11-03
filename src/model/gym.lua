@@ -6,10 +6,10 @@
 -- the cap. The cap table is a local-verification hint (data/oras.lua), so this is a heuristic.
 local M = {}
 
---- Trainer battle that is running: kind "trainer", or no kind but explicitly not wild.
+--- Trainer battle that is running (kind "trainer"; a battle of unknown kind never counts, it could be wild).
 local function trainer_battle(b)
   if type(b) ~= "table" or b.active ~= true then return false end
-  return b.kind == "trainer" or (b.kind == nil and b.wild == false)
+  return b.kind == "trainer"
 end
 M.trainer_battle = trainer_battle
 

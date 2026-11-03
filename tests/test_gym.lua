@@ -203,8 +203,8 @@ t.case("gym_number: a foe a little below the cap still counts (randomized levels
   local cap = oras.level_cap
   t.eq(gym.gym_number(battle("trainer", { cap(0) - gym.CAP_MARGIN }), 0, cap), 1)
   t.eq(gym.gym_number(battle("trainer", { cap(0) - gym.CAP_MARGIN - 1 }), 0, cap), nil)
-  local b = battle(nil, { cap(0) }); b.wild = false
-  t.eq(gym.gym_number(b, 0, cap), 1, "no kind but not wild")
+  local b = battle(nil, { cap(0) }); b.wild = false -- snapshot.collect sets wild = false for an unknown kind
+  t.eq(gym.gym_number(b, 0, cap), nil, "unknown kind never counts")
   b.wild = true
   t.eq(gym.gym_number(b, 0, cap), nil)
 end)
