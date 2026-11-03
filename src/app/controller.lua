@@ -427,6 +427,17 @@ function A:gym_snapshot(snap, cfg)
     end
   end
   local kind, num = gym.stage(snap.battle, self.st and self.st.badges, oras.level_cap, oras.ELITE_CAPS)
+  -- diagnosable: one log line per trainer battle with what the check saw (a missing snapshot is traceable)
+  if gym.trainer_battle(snap.battle) then
+    if not self.gym_logged then
+      self.gym_logged = true
+      self.uz.log.info(string.format("gym check: trainer battle, badges=%s foe_top=%d cap=%s -> %s",
+        tostring(self.st and self.st.badges), gym.top_level(snap.battle),
+        tostring(oras.level_cap(self.st and self.st.badges)), kind and (kind .. ":" .. num) or "no"))
+    end
+  elseif type(snap.battle) == "table" and snap.battle.active == false then
+    self.gym_logged = nil
+  end
   if not kind then
     self.gym_tries = nil
     return
@@ -439,10 +450,12 @@ function A:gym_snapshot(snap, cfg)
   self.gym_tries[key] = (self.gym_tries[key] or 0) + 1
   local reason = kind == "gym" and self.tr("snapshot_gym", { n = num }) or self.tr("snapshot_" .. kind)
   local ok, res, why = pcall(save.snapshot, reason)
+  self.uz.log.info("save snapshot requested: " .. key .. " (try " .. self.gym_tries[key] .. ")")
   if ok and res == true then
     self.gym_done[key] = true
-    self.uz.log.info("save snapshot before " .. key)
+    self.uz.log.info("save snapshot before " .. key .. " queued")
   else
+    self.uz.log.info("save snapshot " .. key .. " not taken: " .. tostring(ok and why or res))
     warn_once(self, "snapshot", "save snapshot refused: " .. tostring(ok and why or res))
   end
 end

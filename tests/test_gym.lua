@@ -17,7 +17,7 @@ t.case("gym_number: trainer battle with a foe at the cap of the next gym", funct
   t.eq(gym.gym_number(battle("trainer", { 12, cap(0) }), 0, cap), 1)
   t.eq(gym.gym_number(battle("trainer", { cap(3) + 2 }), 3, cap), 4)
   t.eq(gym.gym_number(battle("trainer", { cap(7) }), 7, cap), 8)
-  t.eq(gym.gym_number(battle("trainer", { cap(0) - 1 }), 0, cap), nil, "a gym trainer stays below the cap")
+  t.eq(gym.gym_number(battle("trainer", { cap(0) - gym.CAP_MARGIN - 1 }), 0, cap), nil, "a gym trainer stays well below the cap")
   t.eq(gym.gym_number(battle("wild", { 99 }), 0, cap), nil)
   t.eq(gym.gym_number(battle("trainer", { 99 }, false), 0, cap), nil)
   t.eq(gym.gym_number(battle("trainer", { 99 }), 8, cap), nil, "all badges: no gym left")
@@ -129,7 +129,7 @@ t.case("the run view (read only) never snapshots", function()
   t.eq(m.snapshots, {})
 end)
 
--- v0.9.5: Elite Four / champion stages, retry after a lost gym fight, run rule.
+-- v0.9.6: Elite Four / champion stages, retry after a lost gym fight, run rule.
 t.case("stage: Elite Four and champion with all eight badges", function()
   local cap, el = oras.level_cap, oras.ELITE_CAPS
   t.eq({ gym.stage(battle("trainer", { 20, el.elite4 }), 8, cap, el) }, { "elite4", 1 })
@@ -196,4 +196,37 @@ t.case("battle data dropping out mid-fight does not snapshot the gym again", fun
   e.world.battle = battle("trainer", { oras.level_cap(2) })
   e.step(); e.step()
   t.eq(e.m.snapshots, { "before Gym 3" })
+end)
+
+-- v0.9.6 (issue 52): randomized games, kind-less battles, refusals are logged.
+t.case("gym_number: a foe a little below the cap still counts (randomized levels)", function()
+  local cap = oras.level_cap
+  t.eq(gym.gym_number(battle("trainer", { cap(0) - gym.CAP_MARGIN }), 0, cap), 1)
+  t.eq(gym.gym_number(battle("trainer", { cap(0) - gym.CAP_MARGIN - 1 }), 0, cap), nil)
+  local b = battle(nil, { cap(0) }); b.wild = false
+  t.eq(gym.gym_number(b, 0, cap), 1, "no kind but not wild")
+  b.wild = true
+  t.eq(gym.gym_number(b, 0, cap), nil)
+end)
+
+t.case("randomized-like gym fight below the cap is snapshotted and logged", function()
+  local e = boot{ save = true, badges = 0 }
+  e.world.battle = battle("trainer", { oras.level_cap(0) - 1 })
+  e.step(); e.step()
+  t.eq(e.m.snapshots, { "before Gym 1" })
+  local seen = {}
+  for _, l in ipairs(e.m.logs) do
+    if l.text:find("gym check", 1, true) then seen.check = true end
+    if l.text:find("save snapshot requested", 1, true) then seen.req = true end
+  end
+  t.ok(seen.check and seen.req, "diagnostic log lines")
+end)
+
+t.case("a snapshot refusal is logged with its answer", function()
+  local e = boot{ save = { refuse = "no_game" }, badges = 0 }
+  e.world.battle = battle("trainer", { 99 })
+  e.step(); e.step()
+  local found = false
+  for _, l in ipairs(e.m.logs) do if l.text:find("not taken: no_game", 1, true) then found = true end end
+  t.ok(found)
 end)
